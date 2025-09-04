@@ -1,0 +1,5 @@
+First Name,Middle Name,Last Name,Sex,Email,Phone,Registration Number,NAPPS Membership ID,Registration Status,NAPPS Registered,Awards,Position Held,Clearing Status,Total Amount Due
+John,Michael,Smith,Male,john.smith@email.com,+2348123456789,NAPPS202400001,NM2024001,approved,Registered,Best Teacher 2023,Headmaster,cleared,0
+Mary,Jane,Johnson,Female,mary.johnson@email.com,+2348123456790,,NM2024002,pending,Not Registered,,Teacher,outstanding,5000
+David,,Brown,Male,david.brown@email.com,+2348123456791,NAPPS202400002,,approved,Registered with Certificate,Excellence Award 2022,Principal,cleared,0
+Sarah,Grace,Williams,Female,sarah.williams@email.com,+2348123456792,,,pending,Not Registered,,Vice Principal,pending,2500
