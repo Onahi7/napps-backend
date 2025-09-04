@@ -6,10 +6,12 @@ export class ConnectHubSeederService implements OnModuleInit {
   constructor(private readonly connectHubService: ConnectHubService) {}
 
   async onModuleInit() {
-    await this.seedInitialData();
+    // Disable automatic seeding to prevent memory issues on startup
+    // Run seeding manually via API endpoint when needed
+    console.log('✅ Connect Hub Seeder Service initialized (auto-seeding disabled)');
   }
 
-  private async seedInitialData() {
+  async seedInitialData() {
     try {
       // Seed site settings
       await this.seedSiteSettings();
