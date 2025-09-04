@@ -5,18 +5,16 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    cors: {
-      origin: [
-        'http://localhost:3000', // Connect Hub
-        'http://localhost:3002', // Portal
-        'http://localhost:3001', // Backend
-      ],
-      credentials: true,
-    },
-  });
+  const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
+
+  // Configure CORS using environment variables
+  const corsOrigins = configService.get<string>('CORS_ORIGIN', 'http://localhost:3000,http://localhost:3001').split(',');
+  app.enableCors({
+    origin: corsOrigins,
+    credentials: true,
+  });
 
   // Global API prefix
   const apiPrefix = configService.get<string>('API_PREFIX', 'api/v1');
@@ -53,11 +51,11 @@ async function bootstrap() {
     customCssUrl: '/swagger-ui-custom.css',
   });
 
-  const port = configService.get<number>('PORT', 3001);
-  await app.listen(port);
+  const port = process.env.PORT || configService.get<number>('PORT', 3001);
+  await app.listen(port, '0.0.0.0');
 
-  console.log(`🚀 NAPPS Nasarawa Backend API is running on: http://localhost:${port}`);
-  console.log(`📚 API Documentation available at: http://localhost:${port}/${apiPrefix}/docs`);
+  console.log(`🚀 NAPPS Nasarawa Backend API is running on: http://0.0.0.0:${port}`);
+  console.log(`📚 API Documentation available at: http://0.0.0.0:${port}/${apiPrefix}/docs`);
   console.log(`🌍 Environment: ${configService.get<string>('NODE_ENV', 'development')}`);
 }
 
