@@ -12,7 +12,7 @@ async function bootstrap() {
   // Configure CORS using environment variables
   const corsOrigins = configService.get<string>('CORS_ORIGIN', 'http://localhost:3000,http://localhost:3001').split(',').map(origin => origin.trim());
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       if (!origin || corsOrigins.includes(origin)) {
         callback(null, true);
       } else {
