@@ -23,6 +23,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { ConnectHubService } from './connect-hub.service';
+import { ConnectHubSeederService } from './connect-hub-seeder.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -44,7 +45,10 @@ import {
 @ApiTags('Connect Hub - Content Management')
 @Controller('connect-hub')
 export class ConnectHubController {
-  constructor(private readonly connectHubService: ConnectHubService) {}
+  constructor(
+    private readonly connectHubService: ConnectHubService,
+    private readonly connectHubSeederService: ConnectHubSeederService,
+  ) {}
 
   // =============== PUBLIC ENDPOINTS ===============
 
@@ -377,6 +381,21 @@ export class ConnectHubController {
   @ApiResponse({ status: 200, description: 'Analytics retrieved successfully' })
   async getAnalytics() {
     return this.connectHubService.getAnalytics();
+  }
+
+  @Post('admin/seed-data')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Seed initial data for Connect Hub (Admin only)' })
+  @ApiResponse({ status: 201, description: 'Initial data seeded successfully' })
+  async seedInitialData() {
+    try {
+      await this.connectHubSeederService.seedInitialData();
+      return { message: 'Initial data seeded successfully' };
+    } catch (error) {
+      throw new BadRequestException('Failed to seed initial data');
+    }
   }
 
   // =============== HEALTH CHECK ===============
