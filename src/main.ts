@@ -10,11 +10,18 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // Configure CORS using environment variables
-  const corsOrigins = configService.get<string>('CORS_ORIGIN', 'http://localhost:3000,http://localhost:3001').split(',');
+  const corsOrigins = configService.get<string>('CORS_ORIGIN', 'http://localhost:3000,http://localhost:3001').split(',').map(origin => origin.trim());
   app.enableCors({
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      if (!origin || corsOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
   });
+  console.log('CORS allowed origins:', corsOrigins);
 
   // Global API prefix
   const apiPrefix = configService.get<string>('API_PREFIX', 'api/v1');
