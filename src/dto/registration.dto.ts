@@ -1,8 +1,6 @@
 import { IsString, IsEmail, IsOptional, IsEnum, IsNumber, IsArray, ValidateNested, IsBoolean, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { NASARAWA_LGAS } from '../common/constants/nasarawa-lgas';
-import type { NasarawaLga } from '../common/constants/nasarawa-lgas';
 
 // STEP 1: Personal Information DTO
 export class Step1PersonalInfoDto {
@@ -30,10 +28,6 @@ export class Step1PersonalInfoDto {
   @ApiProperty({ example: '+2348012345678' })
   @IsString()
   phone: string;
-
-  @ApiProperty({ example: 'Lafia', enum: NASARAWA_LGAS })
-  @IsEnum(NASARAWA_LGAS)
-  lga: NasarawaLga;
 
   @ApiPropertyOptional({ example: 'Registered with Certificate', enum: ['Not Registered', 'Registered', 'Registered with Certificate'] })
   @IsEnum(['Not Registered', 'Registered', 'Registered with Certificate'])
@@ -362,7 +356,7 @@ export class Step2SchoolInfoDto {
 
 // STEP 3: Payment & Verification DTO
 export class Step3PaymentInfoDto {
-  @ApiPropertyOptional({ example: 'Digital Capturing' })
+  @ApiPropertyOptional({ example: 'online', enum: ['online', 'bank_transfer', 'Digital Capturing'] })
   @IsString()
   @IsOptional()
   paymentMethod?: string;
@@ -371,11 +365,6 @@ export class Step3PaymentInfoDto {
   @IsString()
   @IsOptional()
   paymentStatus?: string;
-
-  @ApiPropertyOptional({ example: 'Cleared', enum: ['pending', 'cleared', 'outstanding'] })
-  @IsEnum(['pending', 'cleared', 'outstanding'])
-  @IsOptional()
-  clearingStatus?: string;
 
   @ApiPropertyOptional({ example: 'Approved' })
   @IsEnum(['pending', 'approved', 'rejected'])
@@ -390,10 +379,6 @@ export class Step3PaymentInfoDto {
 
 // Complete Registration DTO (combines all 3 steps)
 export class CompleteRegistrationDto {
-  @ApiProperty({ example: 'SUB123456' })
-  @IsString()
-  submissionId: string;
-
   @ApiProperty({ type: Step1PersonalInfoDto })
   @ValidateNested()
   @Type(() => Step1PersonalInfoDto)
@@ -434,86 +419,4 @@ export class SaveStep3Dto extends Step3PaymentInfoDto {
   @IsBoolean()
   @IsOptional()
   finalSubmit?: boolean;
-}
-
-// Original DTOs for backward compatibility
-export class CreateProprietorDto {
-  @ApiProperty()
-  @IsString()
-  firstName: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  middleName?: string;
-
-  @ApiProperty()
-  @IsString()
-  lastName: string;
-
-  @ApiPropertyOptional({ enum: ['Male', 'Female'] })
-  @IsOptional()
-  @IsEnum(['Male', 'Female'])
-  sex?: string;
-
-  @ApiProperty()
-  @IsEmail()
-  email: string;
-
-  @ApiProperty()
-  @IsString()
-  phone: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  awards?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  positionHeld?: string;
-}
-
-export class UpdateProprietorDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  firstName?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  middleName?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  lastName?: string;
-
-  @ApiPropertyOptional({ enum: ['Male', 'Female'] })
-  @IsOptional()
-  @IsEnum(['Male', 'Female'])
-  sex?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  awards?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  positionHeld?: string;
-}
-
-export class ProprietorLookupDto {
-  @ApiProperty({ description: 'Email address or phone number' })
-  @IsString()
-  identifier: string;
 }

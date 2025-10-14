@@ -10,6 +10,7 @@ import { SchoolsModule } from './schools/schools.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CommonModule } from './common/common.module';
 import { ConnectHubModule } from './connect-hub/connect-hub.module';
+import { FeesModule } from './fees/fees.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ConnectHubModule } from './connect-hub/connect-hub.module';
     PaymentsModule,
     CommonModule,
     ConnectHubModule,
+    FeesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

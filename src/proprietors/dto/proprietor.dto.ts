@@ -13,6 +13,7 @@ import {
   MinLength,
   MaxLength
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateProprietorDto {
   @ApiProperty({ description: 'First name of the proprietor' })
@@ -166,6 +167,21 @@ export class ProprietorLookupDto {
   @IsString()
   @IsOptional()
   nappsMembershipId?: string;
+
+  @ApiPropertyOptional({ description: 'School name for lookup' })
+  @IsString()
+  @IsOptional()
+  schoolName?: string;
+
+  @ApiPropertyOptional({ description: 'Proprietor first name for lookup' })
+  @IsString()
+  @IsOptional()
+  firstName?: string;
+
+  @ApiPropertyOptional({ description: 'Proprietor last name for lookup' })
+  @IsString()
+  @IsOptional()
+  lastName?: string;
 }
 
 export class ProprietorQueryDto {
@@ -244,6 +260,11 @@ export class CsvImportDto {
     description: 'Skip validation for existing records',
     default: false 
   })
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return value;
+  })
   @IsBoolean()
   @IsOptional()
   skipValidation?: boolean;
@@ -251,6 +272,11 @@ export class CsvImportDto {
   @ApiPropertyOptional({ 
     description: 'Update existing records if found',
     default: false 
+  })
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return value;
   })
   @IsBoolean()
   @IsOptional()

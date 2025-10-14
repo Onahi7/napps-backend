@@ -7,6 +7,7 @@ import * as crypto from 'crypto';
 import { Payment, PaymentDocument } from '../schemas/payment.schema';
 import { Proprietor, ProprietorDocument } from '../schemas/proprietor.schema';
 import { School, SchoolDocument } from '../schemas/school.schema';
+import { FeeConfiguration, FeeConfigurationDocument } from '../schemas/fee-configuration.schema';
 import {
   InitializePaymentDto,
   PaymentResponseDto,
@@ -30,6 +31,7 @@ export class PaymentsService {
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     @InjectModel(Proprietor.name) private proprietorModel: Model<ProprietorDocument>,
     @InjectModel(School.name) private schoolModel: Model<SchoolDocument>,
+    @InjectModel(FeeConfiguration.name) private feeConfigurationModel: Model<FeeConfigurationDocument>,
   ) {
     this.paystackSecretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY') || '';
     this.paystackWebhookSecret = this.configService.get<string>('PAYSTACK_WEBHOOK_SECRET') || '';
@@ -65,11 +67,59 @@ export class PaymentsService {
         }
       }
 
+      // Get fee configuration to calculate fees
+      let feeBreakdown = initializePaymentDto.feeBreakdown || {
+        platformFee: 0,
+        processingFee: 0,
+        nappsShare: 0,
+        proprietorShare: 0,
+      };
+
+      let splitCode = initializePaymentDto.splitCode || undefined;
+      let baseAmount = initializePaymentDto.amount;
+
+      try {
+        const feeConfig = await this.feeConfigurationModel.findOne({
+          code: initializePaymentDto.paymentType,
+          isActive: true,
+        });
+
+        if (feeConfig) {
+          const amountInKobo = Math.round(baseAmount * 100);
+          const feeStructure = feeConfig.feeStructure || {};
+
+          // Calculate fees based on configuration
+          feeBreakdown = {
+            platformFee: (feeStructure.platformFeeFixed || 0) +
+              Math.round((amountInKobo * (feeStructure.platformFeePercentage || 0)) / 100),
+            processingFee: Math.min(
+              Math.round((amountInKobo * (feeStructure.processingFeePercentage || 1.5)) / 100),
+              feeStructure.processingFeeCap || 200000
+            ),
+            nappsShare: (feeStructure.nappsShareFixed || 0) +
+              Math.round((amountInKobo * (feeStructure.nappsSharePercentage || 0)) / 100),
+            proprietorShare: amountInKobo,
+          };
+
+          // Use configured split code if available
+          if (feeConfig.paystackSplitCode) {
+            splitCode = feeConfig.paystackSplitCode;
+          }
+
+          // Update amount if configured amount is different
+          if (!initializePaymentDto.amount || initializePaymentDto.amount === 0) {
+            baseAmount = feeConfig.amount;
+          }
+        }
+      } catch (error) {
+        this.logger.warn(`Fee configuration not found for ${initializePaymentDto.paymentType}, using default fees`);
+      }
+
       // Generate unique reference
       const reference = this.generatePaymentReference();
       
       // Convert amount to kobo (Paystack format)
-      const amountInKobo = Math.round(initializePaymentDto.amount * 100);
+      const amountInKobo = Math.round(baseAmount * 100);
 
       // Create payment record
       const paymentData = {
@@ -77,13 +127,15 @@ export class PaymentsService {
         reference,
         amount: amountInKobo,
         status: 'pending',
+        feeBreakdown,
+        paystackSplitCode: splitCode,
       };
 
       const payment = new this.paymentModel(paymentData);
       await payment.save();
 
       // Prepare Paystack payload
-      const paystackPayload = {
+      const paystackPayload: any = {
         email: initializePaymentDto.email,
         amount: amountInKobo,
         reference,
@@ -110,16 +162,10 @@ export class PaymentsService {
         },
       };
 
-      // Add split configuration if provided
-      if (initializePaymentDto.splitConfig && initializePaymentDto.splitConfig.length > 0) {
-        (paystackPayload as any).split = {
-          type: 'flat',
-          bearer_type: 'account',
-          subaccounts: initializePaymentDto.splitConfig.map(split => ({
-            subaccount: split.subaccount,
-            share: split.share,
-          })),
-        };
+      // Add split code if configured
+      if (splitCode) {
+        paystackPayload.split_code = splitCode;
+        this.logger.log(`Using Paystack split code: ${splitCode} for payment ${reference}`);
       }
 
       // Initialize payment with Paystack
@@ -154,18 +200,105 @@ export class PaymentsService {
 
   // =============== PAYMENT VERIFICATION ===============
 
-  async verifyPayment(verifyPaymentDto: VerifyPaymentDto): Promise<PaymentDocument> {
+  async simulatePayment(reference: string): Promise<{ message: string; payment: any }> {
     try {
+      this.logger.log(`🎭 Starting payment simulation for reference: ${reference}`);
+      
       // Find payment in database
-      const payment = await this.paymentModel.findOne({ 
-        reference: verifyPaymentDto.reference 
-      });
+      const payment = await this.paymentModel.findOne({ reference });
 
       if (!payment) {
         throw new NotFoundException('Payment not found');
       }
 
-      // Verify with Paystack
+      if (payment.status === 'success') {
+        this.logger.log(`Payment ${reference} already successful`);
+        return {
+          message: 'Payment already completed',
+          payment: {
+            reference: payment.reference,
+            status: payment.status,
+            amount: payment.amount / 100,
+            paidAt: payment.paidAt,
+          },
+        };
+      }
+
+      // Simulate successful payment
+      const now = new Date();
+      const simulatedTransactionId = `SIM_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+
+      await payment.updateOne({
+        status: 'success',
+        paystackTransactionId: simulatedTransactionId,
+        paystackChannel: 'simulated_card',
+        gatewayResponse: 'Simulated payment successful',
+        paidAt: now,
+        metadata: {
+          ...payment.metadata,
+          simulated: true,
+          simulatedAt: now.toISOString(),
+        },
+      });
+
+      // Update proprietor's payment status
+      if (payment.proprietorId) {
+        await this.proprietorModel.findByIdAndUpdate(payment.proprietorId, {
+          clearingStatus: 'cleared',
+          totalAmountDue: 0,
+          paymentStatus: 'paid',
+          lastPaymentDate: now,
+        });
+        this.logger.log(`✅ Proprietor ${payment.proprietorId} marked as cleared via simulation`);
+      }
+
+      const updatedPayment = await this.paymentModel.findById(payment._id)
+        .populate('proprietorId', 'firstName lastName email phone')
+        .populate('schoolId', 'schoolName');
+
+      this.logger.log(`🎉 Payment simulation completed successfully for ${reference}`);
+
+      return {
+        message: 'Payment simulated successfully',
+        payment: {
+          reference: updatedPayment!.reference,
+          status: updatedPayment!.status,
+          amount: updatedPayment!.amount / 100,
+          paidAt: updatedPayment!.paidAt,
+          transactionId: simulatedTransactionId,
+          simulated: true,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Payment simulation failed: ${error.message}`);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Payment simulation failed');
+    }
+  }
+
+  async verifyPayment(verifyPaymentDto: VerifyPaymentDto): Promise<PaymentDocument> {
+    try {
+      // Find payment in database
+      const payment = await this.paymentModel.findOne({ 
+        reference: verifyPaymentDto.reference 
+      }).populate('proprietorId', 'firstName middleName lastName email phone')
+        .populate('schoolId', 'schoolName lga');
+
+      if (!payment) {
+        throw new NotFoundException('Payment not found');
+      }
+
+      // Check if payment is from simulation
+      const isSimulatedPayment = payment.reference.startsWith('SIM_') || payment.status === 'success';
+      
+      // If payment already successful or simulated, just return it
+      if (isSimulatedPayment && payment.status === 'success') {
+        return payment;
+      }
+
+      // Verify with Paystack only if not simulated
       const response = await this.paystackClient.get(`/transaction/verify/${verifyPaymentDto.reference}`);
 
       if (response.data.status && response.data.data) {
@@ -185,8 +318,8 @@ export class PaymentsService {
         });
 
         const updatedPayment = await this.paymentModel.findById(payment._id)
-          .populate('proprietorId', 'firstName lastName email phone')
-          .populate('schoolId', 'schoolName');
+          .populate('proprietorId', 'firstName middleName lastName email phone')
+          .populate('schoolId', 'schoolName lga');
           
         return updatedPayment!;
       } else {

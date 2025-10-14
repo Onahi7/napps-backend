@@ -95,7 +95,7 @@ export class ConnectHubController {
 
   @Get('admin/hero-images')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all hero images with pagination (Admin only)' })
   @ApiResponse({ status: 200, description: 'Hero images retrieved successfully' })
@@ -105,7 +105,7 @@ export class ConnectHubController {
 
   @Get('admin/hero-images/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get hero image by ID (Admin only)' })
   @ApiResponse({ status: 200, description: 'Hero image retrieved successfully' })
@@ -115,7 +115,7 @@ export class ConnectHubController {
 
   @Post('admin/hero-images')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new hero image (Admin only)' })
   @ApiResponse({ status: 201, description: 'Hero image created successfully' })
@@ -125,7 +125,7 @@ export class ConnectHubController {
 
   @Put('admin/hero-images/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update hero image (Admin only)' })
   @ApiResponse({ status: 200, description: 'Hero image updated successfully' })
@@ -138,7 +138,7 @@ export class ConnectHubController {
 
   @Delete('admin/hero-images/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete hero image (Admin only)' })
   @ApiResponse({ status: 200, description: 'Hero image deleted successfully' })
@@ -151,7 +151,7 @@ export class ConnectHubController {
 
   @Get('admin/members')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all members with pagination (Admin only)' })
   @ApiResponse({ status: 200, description: 'Members retrieved successfully' })
@@ -161,7 +161,7 @@ export class ConnectHubController {
 
   @Get('admin/members/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get member by ID (Admin only)' })
   @ApiResponse({ status: 200, description: 'Member retrieved successfully' })
@@ -171,7 +171,7 @@ export class ConnectHubController {
 
   @Post('admin/members')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new member (Admin only)' })
   @ApiResponse({ status: 201, description: 'Member created successfully' })
@@ -181,7 +181,7 @@ export class ConnectHubController {
 
   @Put('admin/members/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update member (Admin only)' })
   @ApiResponse({ status: 200, description: 'Member updated successfully' })
@@ -194,7 +194,7 @@ export class ConnectHubController {
 
   @Delete('admin/members/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete member (Admin only)' })
   @ApiResponse({ status: 200, description: 'Member deleted successfully' })
@@ -207,7 +207,7 @@ export class ConnectHubController {
 
   @Get('admin/announcements')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all announcements with pagination (Admin only)' })
   @ApiResponse({ status: 200, description: 'Announcements retrieved successfully' })
@@ -217,7 +217,7 @@ export class ConnectHubController {
 
   @Get('admin/announcements/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get announcement by ID (Admin only)' })
   @ApiResponse({ status: 200, description: 'Announcement retrieved successfully' })
@@ -227,7 +227,7 @@ export class ConnectHubController {
 
   @Post('admin/announcements')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new announcement (Admin only)' })
   @ApiResponse({ status: 201, description: 'Announcement created successfully' })
@@ -237,7 +237,7 @@ export class ConnectHubController {
 
   @Put('admin/announcements/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update announcement (Admin only)' })
   @ApiResponse({ status: 200, description: 'Announcement updated successfully' })
@@ -250,7 +250,7 @@ export class ConnectHubController {
 
   @Delete('admin/announcements/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete announcement (Admin only)' })
   @ApiResponse({ status: 200, description: 'Announcement deleted successfully' })
@@ -263,7 +263,7 @@ export class ConnectHubController {
 
   @Get('admin/settings')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all site settings (Admin only)' })
   @ApiResponse({ status: 200, description: 'Site settings retrieved successfully' })
@@ -273,7 +273,7 @@ export class ConnectHubController {
 
   @Get('admin/settings/:key')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get site setting by key (Admin only)' })
   @ApiResponse({ status: 200, description: 'Site setting retrieved successfully' })
@@ -283,7 +283,7 @@ export class ConnectHubController {
 
   @Post('admin/settings')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new site setting (Admin only)' })
   @ApiResponse({ status: 201, description: 'Site setting created successfully' })
@@ -293,7 +293,7 @@ export class ConnectHubController {
 
   @Put('admin/settings/:key')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update site setting (Admin only)' })
   @ApiResponse({ status: 200, description: 'Site setting updated successfully' })
@@ -306,7 +306,7 @@ export class ConnectHubController {
 
   @Delete('admin/settings/:key')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete site setting (Admin only)' })
   @ApiResponse({ status: 200, description: 'Site setting deleted successfully' })
@@ -319,7 +319,7 @@ export class ConnectHubController {
 
   @Get('admin/content')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all page content (Admin only)' })
   @ApiResponse({ status: 200, description: 'Page content retrieved successfully' })
@@ -329,7 +329,7 @@ export class ConnectHubController {
 
   @Get('admin/content/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get page content by ID (Admin only)' })
   @ApiResponse({ status: 200, description: 'Page content retrieved successfully' })
@@ -339,7 +339,7 @@ export class ConnectHubController {
 
   @Post('admin/content')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new page content (Admin only)' })
   @ApiResponse({ status: 201, description: 'Page content created successfully' })
@@ -349,7 +349,7 @@ export class ConnectHubController {
 
   @Put('admin/content/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update page content (Admin only)' })
   @ApiResponse({ status: 200, description: 'Page content updated successfully' })
@@ -362,7 +362,7 @@ export class ConnectHubController {
 
   @Delete('admin/content/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete page content (Admin only)' })
   @ApiResponse({ status: 200, description: 'Page content deleted successfully' })
@@ -375,7 +375,7 @@ export class ConnectHubController {
 
   @Get('admin/analytics')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get connect hub analytics (Admin only)' })
   @ApiResponse({ status: 200, description: 'Analytics retrieved successfully' })
@@ -385,7 +385,7 @@ export class ConnectHubController {
 
   @Post('admin/seed-data')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Seed initial data for Connect Hub (Admin only)' })
   @ApiResponse({ status: 201, description: 'Initial data seeded successfully' })

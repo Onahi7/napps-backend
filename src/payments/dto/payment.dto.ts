@@ -17,29 +17,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class SplitConfigDto {
-  @ApiProperty({ description: 'Paystack subaccount code' })
-  @IsString()
-  @IsNotEmpty()
-  subaccount: string;
-
-  @ApiProperty({ description: 'Fixed share amount in kobo' })
-  @IsNumber()
-  @Min(0)
-  share: number;
-
-  @ApiPropertyOptional({ description: 'Percentage share (alternative to fixed share)' })
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  percentage?: number;
-
-  @ApiPropertyOptional({ description: 'Description of this split' })
-  @IsString()
-  @IsOptional()
-  description?: string;
-}
-
 export class FeeBreakdownDto {
   @ApiPropertyOptional({ description: 'Platform fee in kobo', default: 0 })
   @IsNumber()
@@ -124,12 +101,10 @@ export class InitializePaymentDto {
   @IsOptional()
   metadata?: Record<string, any>;
 
-  @ApiPropertyOptional({ description: 'Split payment configuration' })
-  @ValidateNested({ each: true })
-  @Type(() => SplitConfigDto)
-  @IsArray()
+  @ApiPropertyOptional({ description: 'Paystack split code (e.g., SPL_xxxxxxxxxx)' })
+  @IsString()
   @IsOptional()
-  splitConfig?: SplitConfigDto[];
+  splitCode?: string;
 
   @ApiPropertyOptional({ description: 'Fee breakdown' })
   @ValidateNested()
