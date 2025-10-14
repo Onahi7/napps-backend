@@ -1,5 +1,5 @@
-First Name,Middle Name,Last Name,Sex,Email,Phone,Registration Number,NAPPS Membership ID,Registration Status,NAPPS Registered,Awards,Position Held,Clearing Status,Total Amount Due
-John,Michael,Smith,Male,john.smith@email.com,+2348123456789,NAPPS202400001,NM2024001,approved,Registered,Best Teacher 2023,Headmaster,cleared,0
-Mary,Jane,Johnson,Female,mary.johnson@email.com,+2348123456790,,NM2024002,pending,Not Registered,,Teacher,outstanding,5000
-David,,Brown,Male,david.brown@email.com,+2348123456791,NAPPS202400002,,approved,Registered with Certificate,Excellence Award 2022,Principal,cleared,0
-Sarah,Grace,Williams,Female,sarah.williams@email.com,+2348123456792,,,pending,Not Registered,,Vice Principal,pending,2500
+Name,Sex,Email,Phone/Mobile,Name Of School,Address,Registeration Status,Approval Status,Are you registered with NAPPs ?,How many times your School participated in Napps Nasarawa State Unified Certificate Examination,Number of Pupils presented in year 2023/2024 NAPPS Nasarawa State certificate examination,Award given to you / your School by NAPPS for the past four years,Position Held at NAPPS Level Progressively
+John Michael Smith,Male,john.smith@email.com,+2348123456789,Greenfield Academy,123 Main Street Lafia,approved,approved,Registered,3,45,Best School Award 2023,State Chairman
+Mary Jane Johnson,Female,mary.johnson@email.com,+2348123456790,Sunrise School,456 Park Avenue Keffi,pending,pending,Not Registered,0,0,,Teacher
+David Brown,Male,david.brown@email.com,+2348123456791,Excellence International,789 School Road Akwanga,approved,approved,Registered with Certificate,5,120,Excellence Award 2022; Outstanding Performance 2023,Vice Chairman
+Sarah Grace Williams,Female,sarah.williams@email.com,+2348123456792,Hope Academy,321 Education Lane Nasarawa,approved,pending,Registered,2,30,,Secretary

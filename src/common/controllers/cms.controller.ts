@@ -80,7 +80,7 @@ export class CmsController {
 
   @Post('admin/content')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new homepage content (Admin only)' })
   @ApiResponse({ status: 201, description: 'Homepage content created successfully' })
@@ -90,7 +90,7 @@ export class CmsController {
 
   @Get('admin/content')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all homepage content with pagination (Admin only)' })
   @ApiResponse({ status: 200, description: 'Homepage content retrieved successfully' })
@@ -100,7 +100,7 @@ export class CmsController {
 
   @Get('admin/content/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get homepage content by ID (Admin only)' })
   @ApiResponse({ status: 200, description: 'Homepage content retrieved successfully' })
@@ -110,7 +110,7 @@ export class CmsController {
 
   @Put('admin/content/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update homepage content (Admin only)' })
   @ApiResponse({ status: 200, description: 'Homepage content updated successfully' })
@@ -123,7 +123,7 @@ export class CmsController {
 
   @Delete('admin/content/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete homepage content (Admin only)' })
   @ApiResponse({ status: 200, description: 'Homepage content deleted successfully' })
@@ -135,7 +135,7 @@ export class CmsController {
 
   @Post('admin/team')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add new team member (Admin only)' })
   @ApiResponse({ status: 201, description: 'Team member created successfully' })
@@ -145,7 +145,7 @@ export class CmsController {
 
   @Get('admin/team')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all team members with pagination (Admin only)' })
   @ApiResponse({ status: 200, description: 'Team members retrieved successfully' })
@@ -155,7 +155,7 @@ export class CmsController {
 
   @Get('admin/team/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get team member by ID (Admin only)' })
   @ApiResponse({ status: 200, description: 'Team member retrieved successfully' })
@@ -165,7 +165,7 @@ export class CmsController {
 
   @Put('admin/team/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update team member (Admin only)' })
   @ApiResponse({ status: 200, description: 'Team member updated successfully' })
@@ -178,7 +178,7 @@ export class CmsController {
 
   @Delete('admin/team/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete team member (Admin only)' })
   @ApiResponse({ status: 200, description: 'Team member deleted successfully' })
@@ -190,7 +190,7 @@ export class CmsController {
 
   @Post('admin/upload/homepage-image/:contentKey/:imageType')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -228,7 +228,7 @@ export class CmsController {
 
   @Post('admin/upload/team-photo/:memberId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -267,7 +267,7 @@ export class CmsController {
 
   @Post('admin/send-newsletter')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send newsletter to recipients (Admin only)' })
   @ApiResponse({ status: 200, description: 'Newsletter sent successfully' })
@@ -277,7 +277,7 @@ export class CmsController {
 
   @Post('admin/send-event-notification')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send event notification (Admin only)' })
   @ApiResponse({ status: 200, description: 'Event notification sent successfully' })
@@ -289,7 +289,7 @@ export class CmsController {
 
   @Patch('admin/team/reorder')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Bulk update team member order (Admin only)' })
   @ApiResponse({ status: 200, description: 'Team member order updated successfully' })
@@ -301,7 +301,7 @@ export class CmsController {
 
   @Patch('admin/content/reorder')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Bulk update content order (Admin only)' })
   @ApiResponse({ status: 200, description: 'Content order updated successfully' })
@@ -315,7 +315,7 @@ export class CmsController {
 
   @Get('admin/analytics')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get CMS analytics (Admin only)' })
   @ApiResponse({ status: 200, description: 'CMS analytics retrieved successfully' })

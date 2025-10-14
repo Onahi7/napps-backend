@@ -87,22 +87,9 @@ export class Payment {
   @Prop()
   gatewayResponse?: string;
 
-  // Split payment configuration
-  @Prop({
-    type: [{
-      subaccount: { type: String, required: true }, // Paystack subaccount code
-      share: { type: Number, required: true }, // Share in kobo
-      percentage: { type: Number }, // Percentage share (alternative to fixed share)
-      description: { type: String },
-    }],
-    default: []
-  })
-  splitConfig: Array<{
-    subaccount: string;
-    share: number;
-    percentage?: number;
-    description?: string;
-  }>;
+  // Split payment with Paystack split code
+  @Prop()
+  paystackSplitCode?: string; // Split code (e.g., SPL_xxxxxxxxxx) configured in fee configuration
 
   // Fee breakdown
   @Prop({

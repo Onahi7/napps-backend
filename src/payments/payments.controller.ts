@@ -64,6 +64,16 @@ export class PaymentsController {
     return await this.paymentsService.verifyPayment(verifyPaymentDto);
   }
 
+  @Post('simulate')
+  @ApiOperation({ summary: 'Simulate a payment (for testing/authorized personnel)' })
+  @ApiResponse({ status: 200, description: 'Payment simulated successfully' })
+  async simulatePayment(
+    @Body() body: { reference: string; cardNumber?: string; cardHolder?: string }
+  ): Promise<{ message: string; payment: any }> {
+    this.logger.log(`🎭 Simulating payment for reference: ${body.reference}`);
+    return await this.paymentsService.simulatePayment(body.reference);
+  }
+
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Handle Paystack webhooks' })
@@ -82,7 +92,7 @@ export class PaymentsController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all payments with filtering and pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number })
@@ -112,7 +122,7 @@ export class PaymentsController {
 
   @Get('stats')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get payment statistics and analytics' })
   @ApiQuery({ name: 'startDate', required: false, type: String })
@@ -136,7 +146,7 @@ export class PaymentsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update payment details' })
   @ApiBody({ type: UpdatePaymentDto })
@@ -150,7 +160,7 @@ export class PaymentsController {
 
   @Post(':id/refund')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Refund a payment' })
   @ApiBody({ type: RefundPaymentDto })
@@ -160,6 +170,35 @@ export class PaymentsController {
     @Body() refundPaymentDto: RefundPaymentDto,
   ): Promise<PaymentDocument> {
     return await this.paymentsService.refundPayment(id, refundPaymentDto);
+  }
+
+  @Get('verify/:reference')
+  @ApiOperation({ summary: 'Verify payment by reference (public endpoint for callbacks)' })
+  @ApiResponse({ status: 200, description: 'Payment verified and retrieved successfully' })
+  async verifyPaymentByReference(@Param('reference') reference: string) {
+    const verifyDto: VerifyPaymentDto = { reference };
+    const payment = await this.paymentsService.verifyPayment(verifyDto);
+    
+    return {
+      status: payment.status,
+      reference: payment.reference,
+      submissionId: payment.metadata?.submissionId,
+      registrationNumber: payment.metadata?.registrationNumber,
+      amount: payment.amount / 100, // Convert from kobo to naira
+      paidAt: payment.paidAt,
+      paymentType: payment.paymentType,
+      proprietor: payment.proprietorId ? {
+        firstName: (payment.proprietorId as any).firstName,
+        middleName: (payment.proprietorId as any).middleName,
+        lastName: (payment.proprietorId as any).lastName,
+        email: (payment.proprietorId as any).email,
+        phone: (payment.proprietorId as any).phone,
+      } : null,
+      school: payment.schoolId ? {
+        schoolName: (payment.schoolId as any).schoolName,
+        lga: (payment.schoolId as any).lga,
+      } : null,
+    };
   }
 
   @Get('reference/:reference')
@@ -191,7 +230,7 @@ export class PaymentsController {
       paymentType: payment.paymentType,
       description: `Retry: ${payment.description}`,
       email: payment.email,
-      splitConfig: payment.splitConfig,
+      splitCode: payment.paystackSplitCode,
       metadata: payment.metadata,
       feeBreakdown: payment.feeBreakdown,
     };
