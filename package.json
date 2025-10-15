@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "nest build",
+    "build:render": "node --max-old-space-size=460 ./node_modules/.bin/nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "npm run build && node dist/main",
     "start:dev": "nest start --watch",
