@@ -17,7 +17,8 @@ import { FeesModule } from './fees/fees.module';
     // Configuration module
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      // Load default .env first, then override with environment-specific file (e.g., .env.production)
+      envFilePath: ['.env', `.env.${process.env.NODE_ENV}`],
     }),
 
     // MongoDB connection

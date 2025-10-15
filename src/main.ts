@@ -10,18 +10,32 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // Configure CORS using environment variables
-  const corsOrigins = configService.get<string>('CORS_ORIGIN', 'http://localhost:3000,http://localhost:3001,http://localhost:8081').split(',').map(origin => origin.trim());
+  const corsOriginEnv = configService.get<string>('CORS_ORIGIN', 'http://localhost:3000,http://localhost:3001,http://localhost:8081');
+  const corsOrigins = corsOriginEnv.split(',').map(origin => origin.trim());
+  
+  // Enable CORS for configured origins with callback to support preflight and credentials
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      if (!origin || corsOrigins.includes(origin)) {
+      // Allow requests with no origin (like mobile apps, Postman, or same-origin)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      
+      // Check if origin is in allowed list
+      if (corsOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
+        console.warn(`⚠️  Origin ${origin} not allowed by CORS. Allowed origins:`, corsOrigins);
+        callback(new Error(`Origin ${origin} not allowed by CORS`), false);
       }
     },
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type,Authorization,Accept',
+    optionsSuccessStatus: 200,
   });
-  console.log('CORS allowed origins:', corsOrigins);
+  console.log('✅ CORS enabled for origins:', corsOrigins);
 
   // Global API prefix
   const apiPrefix = configService.get<string>('API_PREFIX', 'api/v1');
