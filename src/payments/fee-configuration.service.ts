@@ -10,6 +10,15 @@ import {
   BulkFeeUpdateDto,
 } from './dto/fee-configuration.dto';
 
+interface FeeStructure {
+  platformFeePercentage?: number;
+  platformFeeFixed?: number;
+  processingFeePercentage?: number;
+  processingFeeCap?: number;
+  nappsSharePercentage?: number;
+  nappsShareFixed?: number;
+}
+
 @Injectable()
 export class FeeConfigurationService {
   private readonly logger = new Logger(FeeConfigurationService.name);
@@ -239,7 +248,7 @@ export class FeeConfigurationService {
       );
     }
 
-    const feeStructure = fee.feeStructure || {};
+    const feeStructure = (fee.feeStructure || {}) as FeeStructure;
 
     // Calculate platform fee
     const platformFee =

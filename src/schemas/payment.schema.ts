@@ -150,7 +150,12 @@ PaymentSchema.virtual('amountInNaira').get(function() {
 
 // Add virtual for totalAmount (includes fees)
 PaymentSchema.virtual('totalAmount').get(function() {
-  const fees = this.feeBreakdown || {};
+  const fees = this.feeBreakdown || {
+    platformFee: 0,
+    processingFee: 0,
+    nappsShare: 0,
+    proprietorShare: 0
+  };
   return this.amount + (fees.platformFee || 0) + (fees.processingFee || 0);
 });
 

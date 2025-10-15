@@ -20,6 +20,15 @@ import {
   PaymentStatsDto,
 } from './dto/payment.dto';
 
+interface FeeStructure {
+  platformFeePercentage?: number;
+  platformFeeFixed?: number;
+  processingFeePercentage?: number;
+  processingFeeCap?: number;
+  nappsSharePercentage?: number;
+  nappsShareFixed?: number;
+}
+
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -88,7 +97,7 @@ export class PaymentsService {
 
         if (feeConfig) {
           const amountInKobo = Math.round(baseAmount * 100);
-          const feeStructure = feeConfig.feeStructure || {};
+          const feeStructure = (feeConfig.feeStructure || {}) as FeeStructure;
 
           // Calculate fees based on configuration
           feeBreakdown = {
