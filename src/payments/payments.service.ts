@@ -328,10 +328,16 @@ export class PaymentsService {
     try {
       this.logger.log(`💳 Initiating lookup payment for submission: ${submissionId}`);
       
-      // Find proprietor by submissionId (UUID string)
-      const proprietor = await this.proprietorModel.findOne({
+      // Find proprietor by submissionId (UUID string) or MongoDB _id
+      let proprietor = await this.proprietorModel.findOne({
         submissionId
       }).populate('school');
+
+      // If not found by submissionId, try searching by MongoDB _id
+      if (!proprietor && submissionId.match(/^[0-9a-fA-F]{24}$/)) {
+        // submissionId looks like a MongoDB ObjectId, try finding by _id
+        proprietor = await this.proprietorModel.findById(submissionId).populate('school');
+      }
 
       if (!proprietor) {
         throw new NotFoundException('Proprietor not found');
