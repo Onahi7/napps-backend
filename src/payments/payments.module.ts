@@ -9,6 +9,7 @@ import { Payment, PaymentSchema } from '../schemas/payment.schema';
 import { Proprietor, ProprietorSchema } from '../schemas/proprietor.schema';
 import { School, SchoolSchema } from '../schemas/school.schema';
 import { FeeConfiguration, FeeConfigurationSchema } from '../schemas/fee-configuration.schema';
+import { EmailService } from '../common/services/email.service';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { FeeConfiguration, FeeConfigurationSchema } from '../schemas/fee-configu
     ]),
   ],
   controllers: [PaymentsController, FeeConfigurationController],
-  providers: [PaymentsService, FeeConfigurationService],
+  providers: [PaymentsService, FeeConfigurationService, EmailService],
   exports: [PaymentsService, FeeConfigurationService],
 })
 export class PaymentsModule {}
