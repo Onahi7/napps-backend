@@ -93,14 +93,21 @@ FeeConfigurationSchema.index({ validFrom: 1, validUntil: 1 });
 // Virtual for total amount with fees
 FeeConfigurationSchema.virtual('totalAmount').get(function() {
   const base = this.amount * 100; // Convert to kobo
-  const fees = this.feeStructure || {};
+  const fees = this.feeStructure || {
+    platformFeeFixed: 0,
+    platformFeePercentage: 0,
+    processingFeePercentage: 1.5,
+    processingFeeCap: 200000,
+    nappsShareFixed: 0,
+    nappsSharePercentage: 0
+  };
   
-  const platformFee = fees.platformFeeFixed + (base * fees.platformFeePercentage / 100);
+  const platformFee = (fees.platformFeeFixed || 0) + (base * (fees.platformFeePercentage || 0) / 100);
   const processingFee = Math.min(
-    (base * fees.processingFeePercentage / 100),
-    fees.processingFeeCap || Infinity
+    (base * (fees.processingFeePercentage || 1.5) / 100),
+    fees.processingFeeCap || 200000
   );
-  const nappsFee = fees.nappsShareFixed + (base * fees.nappsSharePercentage / 100);
+  const nappsFee = (fees.nappsShareFixed || 0) + (base * (fees.nappsSharePercentage || 0) / 100);
   
   return Math.round(base + platformFee + processingFee + nappsFee);
 });
