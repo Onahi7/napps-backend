@@ -469,41 +469,33 @@ export class ProprietorsService {
   // isNewRegistration: true = double the fee, false = use original fee
   private async calculateDefaultAmountDue(isNewRegistration: boolean = false): Promise<number> {
     try {
-      // First check if ANY fee configurations exist
-      const allFees = await this.feeConfigModel.find().lean();
-      console.log(`📊 Total fee configurations in DB: ${allFees.length}`);
+      // Get ALL active fees
+      const activeFees = await this.feeConfigModel.find({ isActive: true }).lean();
       
-      if (allFees.length > 0) {
-        console.log('📋 Available fees:', allFees.map(f => ({
+      console.log(`📊 Found ${activeFees.length} active fees in DB`);
+      
+      if (activeFees.length > 0) {
+        console.log('📋 Active fees:', activeFees.map(f => ({
           name: f.name,
           code: f.code || 'NO_CODE',
           amount: f.amount,
-          isActive: f.isActive
         })));
-      }
-
-      // Get active registration or membership fee
-      const activeFee = await this.feeConfigModel.findOne({
-        isActive: true,
-        $or: [
-          { code: { $in: ['registration_fee', 'membership_fee', 'napps_dues', 'digital_capturing'] } },
-          { code: { $exists: false } }, // Include fees without a code field
-          { code: null }, // Include fees with null code
-          { code: '' } // Include fees with empty code
-        ]
-      }).sort({ amount: 1 }); // Get the lowest amount
-
-      if (activeFee) {
-        console.log(`✅ Using active fee: ${activeFee.name} (${activeFee.code || 'NO_CODE'}) - ₦${activeFee.amount.toLocaleString()}`);
+        
+        // Sum all active fees
+        const baseTotalAmount = activeFees.reduce((sum, fee) => sum + fee.amount, 0);
+        console.log(`💰 Base total amount: ₦${baseTotalAmount.toLocaleString()}`);
+        
         if (isNewRegistration) {
-          console.log(`💰 Doubling fee for new registration: ₦${activeFee.amount.toLocaleString()} x 2 = ₦${(activeFee.amount * 2).toLocaleString()}`);
-          return activeFee.amount * 2;
+          const doubled = baseTotalAmount * 2;
+          console.log(`💰 Doubling fees for new registration: ₦${baseTotalAmount.toLocaleString()} x 2 = ₦${doubled.toLocaleString()}`);
+          return doubled;
         }
-        console.log(`📋 Using original fee for existing proprietor: ₦${activeFee.amount.toLocaleString()}`);
-        return activeFee.amount;
+        
+        console.log(`📋 Using base amount for existing proprietor: ₦${baseTotalAmount.toLocaleString()}`);
+        return baseTotalAmount;
       }
       
-      console.log('⚠️ No active fee found, checking ANY fee (even inactive)...');
+      console.log('⚠️ No active fees found, checking ANY fee (even inactive)...');
       
       console.log('⚠️ No active fee found, checking ANY fee (even inactive)...');
       
@@ -542,9 +534,14 @@ export class ProprietorsService {
 
     console.log('🔍 Lookup called with:', { email, phone, firstName, lastName, schoolName, registrationNumber, nappsMembershipId });
 
+    // Helper function to escape special regex characters
+    const escapeRegex = (str: string): string => {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    };
+
     const filter: FilterQuery<ProprietorDocument> = {};
 
-    if (email) filter.email = { $regex: email, $options: 'i' };
+    if (email) filter.email = { $regex: escapeRegex(email), $options: 'i' };
     if (phone) {
       // Remove all non-digit characters for flexible phone matching
       const cleanPhone = phone.replace(/\D/g, '');
@@ -552,9 +549,9 @@ export class ProprietorsService {
       // Search for phone with or without country code/formatting
       filter.phone = { $regex: cleanPhone, $options: 'i' };
     }
-    if (firstName) filter.firstName = { $regex: firstName, $options: 'i' };
-    if (lastName) filter.lastName = { $regex: lastName, $options: 'i' };
-    if (schoolName) filter.schoolName = { $regex: schoolName, $options: 'i' };
+    if (firstName) filter.firstName = { $regex: escapeRegex(firstName), $options: 'i' };
+    if (lastName) filter.lastName = { $regex: escapeRegex(lastName), $options: 'i' };
+    if (schoolName) filter.schoolName = { $regex: escapeRegex(schoolName), $options: 'i' };
     if (registrationNumber) filter.registrationNumber = registrationNumber;
     if (nappsMembershipId) filter.nappsMembershipId = nappsMembershipId;
 

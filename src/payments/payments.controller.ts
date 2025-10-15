@@ -74,6 +74,16 @@ export class PaymentsController {
     return await this.paymentsService.simulatePayment(body.reference);
   }
 
+  @Post('initiate-lookup-payment')
+  @ApiOperation({ summary: 'Initiate payment for proprietor from lookup' })
+  @ApiResponse({ status: 201, description: 'Payment initiated successfully' })
+  async initiateLookupPayment(
+    @Body() body: { submissionId: string; email: string }
+  ): Promise<{ simulationMode?: boolean; paymentUrl?: string; payment?: any }> {
+    this.logger.log(`💳 Initiating lookup payment for: ${body.email}`);
+    return await this.paymentsService.initiateLookupPayment(body.submissionId, body.email);
+  }
+
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Handle Paystack webhooks' })

@@ -8,6 +8,7 @@ import { Payment, PaymentDocument } from '../schemas/payment.schema';
 import { Proprietor, ProprietorDocument } from '../schemas/proprietor.schema';
 import { School, SchoolDocument } from '../schemas/school.schema';
 import { FeeConfiguration, FeeConfigurationDocument } from '../schemas/fee-configuration.schema';
+import { EmailService } from '../common/services/email.service';
 import {
   InitializePaymentDto,
   PaymentResponseDto,
@@ -28,6 +29,7 @@ export class PaymentsService {
 
   constructor(
     private configService: ConfigService,
+    private emailService: EmailService,
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     @InjectModel(Proprietor.name) private proprietorModel: Model<ProprietorDocument>,
     @InjectModel(School.name) private schoolModel: Model<SchoolDocument>,
@@ -253,10 +255,42 @@ export class PaymentsService {
       }
 
       const updatedPayment = await this.paymentModel.findById(payment._id)
-        .populate('proprietorId', 'firstName lastName email phone')
+        .populate('proprietorId', 'firstName middleName lastName email phone')
         .populate('schoolId', 'schoolName');
 
       this.logger.log(`🎉 Payment simulation completed successfully for ${reference}`);
+
+      // Send payment confirmation email
+      if (updatedPayment && updatedPayment.proprietorId) {
+        const proprietor = updatedPayment.proprietorId as any;
+        const fullName = `${proprietor.firstName} ${proprietor.middleName || ''} ${proprietor.lastName}`.trim();
+        
+        // Validate email or use fallback
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const recipientEmail = emailRegex.test(proprietor.email) 
+          ? proprietor.email 
+          : 'dicksonhardy7@gmail.com';
+        
+        if (recipientEmail === 'dicksonhardy7@gmail.com') {
+          this.logger.warn(`Invalid email for ${fullName}, using fallback: dicksonhardy7@gmail.com`);
+        }
+
+        try {
+          await this.emailService.sendPaymentConfirmationEmail(
+            recipientEmail,
+            {
+              proprietorName: fullName,
+              amount: updatedPayment.amount,
+              reference: updatedPayment.reference,
+              paymentType: '2025/2026 NAPPS NASARAWA DUES',
+            }
+          );
+          this.logger.log(`📧 Payment confirmation email sent to ${recipientEmail}`);
+        } catch (emailError) {
+          this.logger.error(`Failed to send email: ${emailError.message}`);
+          // Don't fail the payment if email fails
+        }
+      }
 
       return {
         message: 'Payment simulated successfully',
@@ -275,6 +309,123 @@ export class PaymentsService {
         throw error;
       }
       throw new BadRequestException('Payment simulation failed');
+    }
+  }
+
+  async initiateLookupPayment(
+    submissionId: string, 
+    email: string
+  ): Promise<{ simulationMode?: boolean; paymentUrl?: string; payment?: any }> {
+    try {
+      this.logger.log(`💳 Initiating lookup payment for submission: ${submissionId}`);
+      
+      // Find proprietor by submissionId (UUID string)
+      const proprietor = await this.proprietorModel.findOne({
+        submissionId
+      }).populate('school');
+
+      if (!proprietor) {
+        throw new NotFoundException('Proprietor not found');
+      }
+
+      // Check if already cleared
+      if (proprietor.clearingStatus === 'cleared') {
+        throw new BadRequestException('Payment already cleared for this proprietor');
+      }
+
+      // Get all active fees
+      const fees = await this.feeConfigurationModel.find({ isActive: true }).lean();
+      const baseTotalAmount = fees.reduce((sum: number, fee: any) => sum + fee.amount, 0);
+      
+      // Use saved amount or calculate total
+      const totalAmount = proprietor.totalAmountDue && proprietor.totalAmountDue > 0
+        ? proprietor.totalAmountDue
+        : baseTotalAmount;
+
+      // Generate payment reference
+      const reference = `PAY_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+      
+      // Get split code
+      const primaryFee = fees.find((f: any) => f.paystackSplitCode);
+      const splitCode = primaryFee?.paystackSplitCode;
+
+      // Create payment record
+      const paymentData = {
+        proprietorId: proprietor._id,
+        schoolId: proprietor.school?._id || proprietor.school,
+        amount: Math.round(totalAmount * 100), // Convert to kobo
+        paymentType: 'registration_fee',
+        reference,
+        status: 'pending',
+        email: proprietor.email,
+        paystackSplitCode: splitCode,
+        description: `Payment from lookup for ${proprietor.firstName} ${proprietor.lastName}`,
+        metadata: {
+          submissionId: proprietor.submissionId,
+          fees: fees.map((f: any) => ({ code: f.code, name: f.name, amount: f.amount })),
+          lookupPayment: true,
+        },
+      };
+
+      const payment = new this.paymentModel(paymentData);
+      await payment.save();
+
+      // Check if we're in simulation mode
+      const paystackSecretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY');
+      const isSimulationMode = !paystackSecretKey || paystackSecretKey === 'simulation';
+      
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:8080';
+
+      if (isSimulationMode) {
+        this.logger.log(`🎭 Simulation mode enabled for ${email}`);
+        return {
+          simulationMode: true,
+          paymentUrl: `${frontendUrl}/payment/simulate?reference=${reference}`,
+          payment: {
+            reference,
+            amount: totalAmount,
+          },
+        };
+      }
+
+      // Initialize real Paystack payment
+      const paystackPayload: any = {
+        email: proprietor.email,
+        amount: Math.round(totalAmount * 100), // Convert to kobo
+        reference,
+        callback_url: `${frontendUrl}/payment/verify?reference=${reference}`,
+        metadata: {
+          proprietorId: String(proprietor._id),
+          schoolId: proprietor.school?._id?.toString() || '',
+          submissionId: proprietor.submissionId,
+          lookupPayment: true,
+        },
+      };
+
+      if (splitCode) {
+        paystackPayload.split_code = splitCode;
+      }
+
+      const paystackResponse = await this.paystackClient.post('/transaction/initialize', paystackPayload);
+
+      if (paystackResponse && paystackResponse.data) {
+        this.logger.log(`✅ Paystack payment initialized for ${email}`);
+        return {
+          paymentUrl: paystackResponse.data.authorization_url,
+          payment: {
+            reference,
+            amount: totalAmount,
+          },
+        };
+      }
+
+      throw new BadRequestException('Failed to initialize payment with Paystack');
+    } catch (error) {
+      this.logger.error(`Failed to initiate lookup payment: ${error.message}`);
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to initiate payment');
     }
   }
 
