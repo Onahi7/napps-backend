@@ -661,31 +661,8 @@ export class PaymentsService {
       this.paymentModel.countDocuments(filter),
     ]);
 
-    // For payments without proper schoolId, try to get school info from related sources
-    const enhancedData = await Promise.all(data.map(async (payment) => {
-      const paymentObj = payment.toObject();
-      
-      // If payment has no school info but has proprietor, try to find school by proprietorId
-      if (!paymentObj.schoolId && paymentObj.proprietorId) {
-        try {
-          const school = await this.schoolModel.findOne({ 
-            proprietorId: paymentObj.proprietorId._id 
-          }).select('schoolName address').lean();
-          
-          if (school) {
-            paymentObj.schoolId = school;
-          }
-        } catch (error) {
-          // Silently continue if school lookup fails
-          this.logger.warn(`Failed to lookup school for proprietor ${paymentObj.proprietorId._id}: ${error.message}`);
-        }
-      }
-      
-      return paymentObj;
-    }));
-
     return {
-      data: enhancedData,
+      data,
       pagination: {
         page,
         limit,

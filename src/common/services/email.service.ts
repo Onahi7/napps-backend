@@ -51,6 +51,17 @@ export class EmailService {
 
   // =============== BASIC EMAIL SENDING ===============
 
+  private sanitizeTagValue(value: string): string {
+    // Replace any non-ASCII letters, numbers, underscores, or dashes with dashes
+    // Also convert to lowercase and trim
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, ''); // Remove leading/trailing dashes
+  }
+
   async sendEmail(
     options: EmailOptions,
   ): Promise<{ id: string; success: boolean }> {
@@ -160,7 +171,7 @@ export class EmailService {
       html,
       tags: [
         { name: 'category', value: 'payment-confirmation' },
-        { name: 'payment-type', value: paymentDetails.paymentType },
+        { name: 'payment-type', value: this.sanitizeTagValue(paymentDetails.paymentType) },
       ],
     });
   }
