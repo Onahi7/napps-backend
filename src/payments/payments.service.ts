@@ -348,6 +348,21 @@ export class PaymentsService {
         throw new BadRequestException('Payment already cleared for this proprietor');
       }
 
+      // Try to find the school for this proprietor if not already linked
+      let schoolId = proprietor.school;
+      if (!schoolId) {
+        const school = await this.schoolModel.findOne({ proprietorId: proprietor._id });
+        if (school) {
+          schoolId = school._id;
+          // Update the proprietor with the school reference for future use
+          try {
+            await this.proprietorModel.findByIdAndUpdate(proprietor._id, { school: school._id });
+          } catch (error) {
+            this.logger.warn(`Failed to update proprietor ${proprietor._id} with school reference: ${error.message}`);
+          }
+        }
+      }
+
       // Get all active fees
       const fees = await this.feeConfigurationModel.find({ isActive: true }).lean();
       const baseTotalAmount = fees.reduce((sum: number, fee: any) => sum + fee.amount, 0);
@@ -367,7 +382,7 @@ export class PaymentsService {
       // Create payment record
       const paymentData = {
         proprietorId: proprietor._id,
-        schoolId: proprietor.school?._id || proprietor.school,
+        schoolId: schoolId,
         amount: Math.round(totalAmount * 100), // Convert to kobo
         paymentType: 'registration_fee',
         reference,
@@ -411,7 +426,7 @@ export class PaymentsService {
         callback_url: `${frontendUrl}/payment/verify?reference=${reference}`,
         metadata: {
           proprietorId: String(proprietor._id),
-          schoolId: proprietor.school?._id?.toString() || '',
+          schoolId: schoolId?.toString() || '',
           submissionId: proprietor.submissionId,
           lookupPayment: true,
         },
@@ -646,8 +661,31 @@ export class PaymentsService {
       this.paymentModel.countDocuments(filter),
     ]);
 
+    // For payments without proper schoolId, try to get school info from related sources
+    const enhancedData = await Promise.all(data.map(async (payment) => {
+      const paymentObj = payment.toObject();
+      
+      // If payment has no school info but has proprietor, try to find school by proprietorId
+      if (!paymentObj.schoolId && paymentObj.proprietorId) {
+        try {
+          const school = await this.schoolModel.findOne({ 
+            proprietorId: paymentObj.proprietorId._id 
+          }).select('schoolName address').lean();
+          
+          if (school) {
+            paymentObj.schoolId = school;
+          }
+        } catch (error) {
+          // Silently continue if school lookup fails
+          this.logger.warn(`Failed to lookup school for proprietor ${paymentObj.proprietorId._id}: ${error.message}`);
+        }
+      }
+      
+      return paymentObj;
+    }));
+
     return {
-      data,
+      data: enhancedData,
       pagination: {
         page,
         limit,
@@ -665,6 +703,22 @@ export class PaymentsService {
 
     if (!payment) {
       throw new NotFoundException(`Payment with ID ${id} not found`);
+    }
+
+    // If payment has no school info but has proprietor, try to find school by proprietorId
+    if (!payment.schoolId && payment.proprietorId) {
+      try {
+        const school = await this.schoolModel.findOne({ 
+          proprietorId: payment.proprietorId._id 
+        }).select('schoolName address');
+        
+        if (school) {
+          // Temporarily attach school info for this response
+          (payment as any).schoolId = school;
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to lookup school for proprietor ${payment.proprietorId._id}: ${error.message}`);
+      }
     }
 
     return payment;
@@ -861,10 +915,30 @@ export class PaymentsService {
   }
 
   async getPaymentsByProprietor(proprietorId: string): Promise<PaymentDocument[]> {
-    return await this.paymentModel
+    const payments = await this.paymentModel
       .find({ proprietorId, isActive: true })
       .populate('schoolId', 'schoolName')
       .sort({ createdAt: -1 });
+
+    // Enhance payments with school info if missing
+    const enhancedPayments = await Promise.all(payments.map(async (payment) => {
+      if (!payment.schoolId) {
+        try {
+          const school = await this.schoolModel.findOne({ 
+            proprietorId: payment.proprietorId 
+          }).select('schoolName');
+          
+          if (school) {
+            (payment as any).schoolId = school;
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to lookup school for proprietor ${proprietorId}: ${error.message}`);
+        }
+      }
+      return payment;
+    }));
+
+    return enhancedPayments;
   }
 
   async getPaymentsBySchool(schoolId: string): Promise<PaymentDocument[]> {
