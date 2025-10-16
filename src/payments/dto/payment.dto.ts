@@ -183,12 +183,14 @@ export class RefundPaymentDto {
 
 export class PaymentQueryDto {
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   @Min(1)
   page?: number;
 
   @ApiPropertyOptional({ description: 'Items per page', default: 10 })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   @Min(1)
@@ -251,12 +253,14 @@ export class PaymentQueryDto {
   endDate?: string;
 
   @ApiPropertyOptional({ description: 'Minimum amount filter (in kobo)' })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   @Min(0)
   minAmount?: number;
 
   @ApiPropertyOptional({ description: 'Maximum amount filter (in kobo)' })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   @Min(0)
