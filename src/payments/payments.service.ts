@@ -353,7 +353,7 @@ export class PaymentsService {
       if (!schoolId) {
         const school = await this.schoolModel.findOne({ proprietorId: proprietor._id });
         if (school) {
-          schoolId = school._id;
+          schoolId = school._id as any;
           // Update the proprietor with the school reference for future use
           try {
             await this.proprietorModel.findByIdAndUpdate(proprietor._id, { school: school._id });
