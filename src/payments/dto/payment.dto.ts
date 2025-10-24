@@ -15,7 +15,7 @@ import {
   IsDateString,
   IsUrl
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class FeeBreakdownDto {
   @ApiPropertyOptional({ description: 'Platform fee in kobo', default: 0 })
@@ -183,17 +183,17 @@ export class RefundPaymentDto {
 
 export class PaymentQueryDto {
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
-  @Type(() => Number)
-  @IsNumber()
   @IsOptional()
-  @Min(1)
+  @Transform(({ value }) => value ? parseInt(value, 10) : 1)
+  @IsNumber({}, { message: 'Page must be a number' })
+  @Min(1, { message: 'Page must be at least 1' })
   page?: number;
 
   @ApiPropertyOptional({ description: 'Items per page', default: 10 })
-  @Type(() => Number)
-  @IsNumber()
   @IsOptional()
-  @Min(1)
+  @Transform(({ value }) => value ? parseInt(value, 10) : 10)
+  @IsNumber({}, { message: 'Limit must be a number' })
+  @Min(1, { message: 'Limit must be at least 1' })
   limit?: number;
 
   @ApiPropertyOptional({ description: 'Filter by proprietor ID' })
