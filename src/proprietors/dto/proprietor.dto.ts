@@ -11,9 +11,12 @@ import {
   IsObject,
   IsNotEmpty,
   MinLength,
-  MaxLength
+  MaxLength,
+  IsArray
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { NAPPS_CHAPTERS } from '../../common/constants/napps-chapters';
+import type { NappsChapter } from '../../common/constants/napps-chapters';
 
 export class CreateProprietorDto {
   @ApiProperty({ description: 'First name of the proprietor' })
@@ -90,6 +93,17 @@ export class CreateProprietorDto {
   @IsEnum(['Not Registered', 'Registered', 'Registered with Certificate'])
   @IsOptional()
   nappsRegistered?: string;
+
+  @ApiPropertyOptional({ 
+    example: ['Lafia A', 'Keffi'], 
+    enum: NAPPS_CHAPTERS,
+    isArray: true,
+    description: 'NAPPS chapters assigned to this proprietor'
+  })
+  @IsArray()
+  @IsEnum(NAPPS_CHAPTERS, { each: true })
+  @IsOptional()
+  chapters?: NappsChapter[];
 
   @ApiPropertyOptional({ description: 'Participation history object' })
   @IsObject()

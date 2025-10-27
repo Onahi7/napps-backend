@@ -45,6 +45,7 @@ import {
   UpdatePaymentStatusDto,
   ProprietorUpdateDto
 } from './dto/update-proprietor-data.dto';
+import { UpdateChaptersDto, BulkUpdateChaptersDto } from './dto/chapters.dto';
 
 @ApiTags('Proprietors')
 @Controller('proprietors')
@@ -349,6 +350,59 @@ export class ProprietorsController {
   })
   async bulkUpdate(@Param('id') id: string, @Body() updateDto: ProprietorUpdateDto) {
     return await this.proprietorsService.bulkUpdate(id, updateDto);
+  }
+
+  @Patch(':id/chapters')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update proprietor chapters (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Proprietor ID' })
+  @ApiBody({ type: UpdateChaptersDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Chapters updated successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Proprietor not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Authentication required',
+  })
+  async updateChapters(@Param('id') id: string, @Body() chaptersDto: UpdateChaptersDto) {
+    return await this.proprietorsService.updateChapters(id, chaptersDto);
+  }
+
+  @Post('chapters/bulk-update')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk update chapters for multiple proprietors (Admin only)' })
+  @ApiBody({ type: BulkUpdateChaptersDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Bulk chapter update completed',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid request data',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Authentication required',
+  })
+  async bulkUpdateChapters(@Body() bulkDto: BulkUpdateChaptersDto) {
+    return await this.proprietorsService.bulkUpdateChapters(bulkDto);
+  }
+
+  @Get('chapters/available')
+  @ApiOperation({ summary: 'Get list of available NAPPS chapters' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Available chapters retrieved successfully',
+  })
+  async getAvailableChapters() {
+    return await this.proprietorsService.getAvailableChapters();
   }
 
   @Delete(':id')

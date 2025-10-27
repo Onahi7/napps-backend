@@ -2,6 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { NASARAWA_LGAS } from '../common/constants/nasarawa-lgas';
 import type { NasarawaLga } from '../common/constants/nasarawa-lgas';
+import { NAPPS_CHAPTERS } from '../common/constants/napps-chapters';
+import type { NappsChapter } from '../common/constants/napps-chapters';
 
 export type ProprietorDocument = Proprietor & Document;
 
@@ -28,6 +30,9 @@ export class Proprietor {
 
   @Prop({ enum: NASARAWA_LGAS, required: true })
   lga: NasarawaLga;
+
+  @Prop({ type: [String], enum: NAPPS_CHAPTERS, default: [] })
+  chapters: NappsChapter[];
 
   @Prop({ unique: true, sparse: true })
   registrationNumber?: string;
