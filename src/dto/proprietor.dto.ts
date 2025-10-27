@@ -3,6 +3,8 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NASARAWA_LGAS } from '../common/constants/nasarawa-lgas';
 import type { NasarawaLga } from '../common/constants/nasarawa-lgas';
+import { NAPPS_CHAPTERS } from '../common/constants/napps-chapters';
+import type { NappsChapter } from '../common/constants/napps-chapters';
 
 // STEP 1: Personal Information DTO
 export class Step1PersonalInfoDto {
@@ -34,6 +36,17 @@ export class Step1PersonalInfoDto {
   @ApiProperty({ example: 'Lafia', enum: NASARAWA_LGAS })
   @IsEnum(NASARAWA_LGAS)
   lga: NasarawaLga;
+
+  @ApiPropertyOptional({ 
+    example: ['Lafia A', 'Lafia B'], 
+    enum: NAPPS_CHAPTERS,
+    isArray: true,
+    description: 'NAPPS chapters assigned to this proprietor'
+  })
+  @IsArray()
+  @IsEnum(NAPPS_CHAPTERS, { each: true })
+  @IsOptional()
+  chapters?: NappsChapter[];
 
   @ApiPropertyOptional({ example: 'Registered with Certificate', enum: ['Not Registered', 'Registered', 'Registered with Certificate'] })
   @IsEnum(['Not Registered', 'Registered', 'Registered with Certificate'])

@@ -23,6 +23,9 @@ import {
   ProprietorQueryDto,
   CsvImportResultDto
 } from './dto/proprietor.dto';
+import { UpdateChaptersDto, BulkUpdateChaptersDto } from './dto/chapters.dto';
+import { DEFAULT_CHAPTERS } from '../common/constants/napps-chapters';
+import type { NappsChapter } from '../common/constants/napps-chapters';
 
 @Injectable()
 export class ProprietorsService {
@@ -65,6 +68,7 @@ export class ProprietorsService {
         submissionStatus: 'step1',
         registrationStatus: 'pending',
         isActive: false, // Will be activated after completing all steps
+        chapters: data.chapters || DEFAULT_CHAPTERS, // Assign chapters from registration or default
       });
 
       await proprietor.save();
@@ -377,6 +381,11 @@ export class ProprietorsService {
       // Generate registration number if not provided
       if (!createProprietorDto.registrationNumber) {
         createProprietorDto.registrationNumber = await this.generateRegistrationNumber();
+      }
+
+      // Assign default chapters if not provided
+      if (!createProprietorDto.chapters) {
+        createProprietorDto.chapters = DEFAULT_CHAPTERS;
       }
 
       const proprietor = new this.proprietorModel(createProprietorDto);
@@ -1153,6 +1162,92 @@ export class ProprietorsService {
     return {
       message: 'Proprietor data updated successfully',
       proprietor,
+    };
+  }
+
+  // Chapter Management Methods
+  async updateChapters(
+    proprietorId: string,
+    chaptersDto: UpdateChaptersDto
+  ): Promise<{ message: string; proprietor: ProprietorDocument }> {
+    const proprietor = await this.proprietorModel.findById(proprietorId);
+    
+    if (!proprietor) {
+      throw new NotFoundException('Proprietor not found');
+    }
+
+    proprietor.chapters = chaptersDto.chapters;
+    await proprietor.save();
+
+    return {
+      message: 'Chapters updated successfully',
+      proprietor,
+    };
+  }
+
+  async bulkUpdateChapters(
+    bulkDto: BulkUpdateChaptersDto
+  ): Promise<{ 
+    message: string; 
+    updatedCount: number; 
+    proprietorIds: string[];
+    errors: Array<{ proprietorId: string; error: string }>;
+  }> {
+    const { proprietorIds, chapters, replace = false } = bulkDto;
+    const errors: Array<{ proprietorId: string; error: string }> = [];
+    let updatedCount = 0;
+
+    for (const proprietorId of proprietorIds) {
+      try {
+        const proprietor = await this.proprietorModel.findById(proprietorId);
+        
+        if (!proprietor) {
+          errors.push({ 
+            proprietorId, 
+            error: 'Proprietor not found' 
+          });
+          continue;
+        }
+
+        if (replace) {
+          // Replace existing chapters completely
+          proprietor.chapters = chapters;
+        } else {
+          // Add to existing chapters (avoid duplicates)
+          const existingChapters = proprietor.chapters || [];
+          const newChapters = [...existingChapters];
+          
+          for (const chapter of chapters) {
+            if (!newChapters.includes(chapter)) {
+              newChapters.push(chapter);
+            }
+          }
+          
+          proprietor.chapters = newChapters;
+        }
+
+        await proprietor.save();
+        updatedCount++;
+      } catch (error) {
+        errors.push({ 
+          proprietorId, 
+          error: error.message || 'Unknown error occurred' 
+        });
+      }
+    }
+
+    return {
+      message: `Bulk update completed. ${updatedCount} proprietors updated successfully.`,
+      updatedCount,
+      proprietorIds: proprietorIds.slice(0, updatedCount),
+      errors,
+    };
+  }
+
+  async getAvailableChapters(): Promise<{ chapters: NappsChapter[] }> {
+    const { NAPPS_CHAPTERS } = await import('../common/constants/napps-chapters');
+    return {
+      chapters: [...NAPPS_CHAPTERS],
     };
   }
 }
