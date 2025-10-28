@@ -14,7 +14,7 @@ import {
   MaxLength,
   IsArray
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { NAPPS_CHAPTERS } from '../../common/constants/napps-chapters';
 import type { NappsChapter } from '../../common/constants/napps-chapters';
 
