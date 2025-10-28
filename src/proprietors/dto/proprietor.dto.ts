@@ -200,11 +200,13 @@ export class ProprietorLookupDto {
 
 export class ProprietorQueryDto {
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   page?: number;
 
   @ApiPropertyOptional({ description: 'Items per page', default: 10 })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   limit?: number;
