@@ -264,7 +264,7 @@ export class PaymentsService {
       }
 
       const updatedPayment = await this.paymentModel.findById(payment._id)
-        .populate('proprietorId', 'firstName middleName lastName email phone')
+        .populate('proprietorId', 'firstName middleName lastName email phone chapters')
         .populate('schoolId', 'schoolName');
 
       this.logger.log(`🎉 Payment simulation completed successfully for ${reference}`);
@@ -464,7 +464,7 @@ export class PaymentsService {
       // Find payment in database
       const payment = await this.paymentModel.findOne({ 
         reference: verifyPaymentDto.reference 
-      }).populate('proprietorId', 'firstName middleName lastName email phone')
+      }).populate('proprietorId', 'firstName middleName lastName email phone chapters')
         .populate('schoolId', 'schoolName lga');
 
       if (!payment) {
@@ -499,7 +499,7 @@ export class PaymentsService {
         });
 
         const updatedPayment = await this.paymentModel.findById(payment._id)
-          .populate('proprietorId', 'firstName middleName lastName email phone')
+          .populate('proprietorId', 'firstName middleName lastName email phone chapters')
           .populate('schoolId', 'schoolName lga');
           
         return updatedPayment!;
@@ -652,7 +652,7 @@ export class PaymentsService {
     const [data, total] = await Promise.all([
       this.paymentModel
         .find(filter)
-        .populate('proprietorId', 'firstName lastName email phone registrationNumber')
+        .populate('proprietorId', 'firstName lastName email phone registrationNumber chapters')
         .populate('schoolId', 'schoolName address')
         .sort(sort)
         .skip(skip)
@@ -675,7 +675,7 @@ export class PaymentsService {
   async findPaymentById(id: string): Promise<PaymentDocument> {
     const payment = await this.paymentModel
       .findById(id)
-      .populate('proprietorId', 'firstName lastName email phone registrationNumber')
+      .populate('proprietorId', 'firstName lastName email phone registrationNumber chapters')
       .populate('schoolId', 'schoolName address');
 
     if (!payment) {
