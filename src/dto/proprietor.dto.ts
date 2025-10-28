@@ -37,16 +37,15 @@ export class Step1PersonalInfoDto {
   @IsEnum(NASARAWA_LGAS)
   lga: NasarawaLga;
 
-  @ApiPropertyOptional({ 
-    example: ['Lafia A', 'Lafia B'], 
+  @ApiProperty({ 
+    example: ['Lafia A'], 
     enum: NAPPS_CHAPTERS,
     isArray: true,
-    description: 'NAPPS chapters assigned to this proprietor'
+    description: 'NAPPS chapter assigned to this proprietor (required)'
   })
   @IsArray()
   @IsEnum(NAPPS_CHAPTERS, { each: true })
-  @IsOptional()
-  chapters?: NappsChapter[];
+  chapters: NappsChapter[];
 
   @ApiPropertyOptional({ example: 'Registered with Certificate', enum: ['Not Registered', 'Registered', 'Registered with Certificate'] })
   @IsEnum(['Not Registered', 'Registered', 'Registered with Certificate'])

@@ -68,7 +68,7 @@ export class ProprietorsService {
         submissionStatus: 'step1',
         registrationStatus: 'pending',
         isActive: false, // Will be activated after completing all steps
-        chapters: data.chapters || DEFAULT_CHAPTERS, // Assign chapters from registration or default
+        chapters: data.chapters, // Chapters is now required in the form
       });
 
       await proprietor.save();
@@ -1028,6 +1028,7 @@ export class ProprietorsService {
     byStatus: Record<string, number>;
     byNappsRegistration: Record<string, number>;
     byClearingStatus: Record<string, number>;
+    byChapter: Record<string, number>;
     totalAmountDue: number;
   }> {
     const [
@@ -1035,7 +1036,8 @@ export class ProprietorsService {
       statusStats,
       nappsStats,
       clearingStats,
-      amountStats
+      amountStats,
+      chapterStats
     ] = await Promise.all([
       this.proprietorModel.countDocuments({ isActive: true }),
       this.proprietorModel.aggregate([
@@ -1053,6 +1055,16 @@ export class ProprietorsService {
       this.proprietorModel.aggregate([
         { $match: { isActive: true } },
         { $group: { _id: null, total: { $sum: '$totalAmountDue' } } }
+      ]),
+      this.proprietorModel.aggregate([
+        { $match: { isActive: true } },
+        { $unwind: { path: '$chapters', preserveNullAndEmptyArrays: true } },
+        { 
+          $group: { 
+            _id: { $ifNull: ['$chapters', 'N/A'] }, 
+            count: { $sum: 1 } 
+          } 
+        }
       ])
     ]);
 
@@ -1067,6 +1079,10 @@ export class ProprietorsService {
         return acc;
       }, {}),
       byClearingStatus: clearingStats.reduce((acc, item) => {
+        acc[item._id] = item.count;
+        return acc;
+      }, {}),
+      byChapter: chapterStats.reduce((acc, item) => {
         acc[item._id] = item.count;
         return acc;
       }, {}),
