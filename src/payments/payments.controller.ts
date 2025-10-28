@@ -6,6 +6,7 @@ import {
   Param,
   Query,
   Patch,
+  Delete,
   UseGuards,
   Headers,
   HttpCode,
@@ -166,6 +167,16 @@ export class PaymentsController {
     @Body() updatePaymentDto: UpdatePaymentDto,
   ): Promise<PaymentDocument> {
     return await this.paymentsService.updatePayment(id, updatePaymentDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a payment record' })
+  @ApiResponse({ status: 200, description: 'Payment deleted successfully' })
+  async deletePayment(@Param('id') id: string): Promise<{ message: string }> {
+    return await this.paymentsService.deletePayment(id);
   }
 
   @Post(':id/refund')

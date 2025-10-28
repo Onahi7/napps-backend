@@ -708,7 +708,7 @@ export class PaymentsService {
         updatePaymentDto,
         { new: true, runValidators: true }
       )
-      .populate('proprietorId', 'firstName lastName email phone registrationNumber')
+      .populate('proprietorId', 'firstName lastName email phone registrationNumber chapters')
       .populate('schoolId', 'schoolName address');
 
       if (!payment) {
@@ -721,6 +721,34 @@ export class PaymentsService {
         throw error;
       }
       throw new BadRequestException(error.message || 'Failed to update payment');
+    }
+  }
+
+  async deletePayment(id: string): Promise<{ message: string }> {
+    try {
+      const payment = await this.paymentModel.findById(id);
+      
+      if (!payment) {
+        throw new NotFoundException(`Payment with ID ${id} not found`);
+      }
+
+      // Check if payment is successful - you may want to restrict deletion
+      if (payment.status === 'success') {
+        this.logger.warn(`⚠️ Deleting successful payment: ${id}`);
+      }
+
+      await this.paymentModel.findByIdAndDelete(id);
+      
+      this.logger.log(`🗑️ Payment deleted: ${id}`);
+      
+      return {
+        message: 'Payment deleted successfully'
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(error.message || 'Failed to delete payment');
     }
   }
 
