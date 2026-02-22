@@ -4,21 +4,14 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module';
-import { ProprietorsModule } from './proprietors/proprietors.module';
-import { SchoolsModule } from './schools/schools.module';
-import { PaymentsModule } from './payments/payments.module';
-import { CommonModule } from './common/common.module';
-import { ConnectHubModule } from './connect-hub/connect-hub.module';
-import { FeesModule } from './fees/fees.module';
+import { LevyPaymentsModule } from './levy-payments/levy-payments.module';
 
 @Module({
   imports: [
     // Configuration module
     ConfigModule.forRoot({
       isGlobal: true,
-      // Load default .env first, then override with environment-specific file (e.g., .env.production)
-      envFilePath: ['.env', `.env.${process.env.NODE_ENV}`],
+      envFilePath: '.env',
     }),
 
     // MongoDB connection
@@ -41,13 +34,7 @@ import { FeesModule } from './fees/fees.module';
     ]),
 
     // Feature modules
-    AuthModule,
-    ProprietorsModule,
-    SchoolsModule,
-    PaymentsModule,
-    CommonModule,
-    ConnectHubModule,
-    FeesModule,
+    LevyPaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
