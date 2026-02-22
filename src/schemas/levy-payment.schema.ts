@@ -5,8 +5,8 @@ export type LevyPaymentDocument = LevyPayment & Document;
 
 @Schema({ timestamps: true })
 export class LevyPayment {
-  @Prop({ type: Types.ObjectId, ref: 'Proprietor', required: true })
-  proprietorId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Proprietor', required: false })
+  proprietorId?: Types.ObjectId;
 
   @Prop({ required: true })
   memberName: string;
@@ -30,7 +30,7 @@ export class LevyPayment {
   wards: string[];
 
   @Prop({ required: true, type: Number })
-  amount: number; // Amount in kobo (5100 * 100 = 510000)
+  amount: number; // Amount in kobo (5250 * 100 = 525000)
 
   @Prop({ 
     enum: ['pending', 'processing', 'success', 'failed', 'refunded'], 

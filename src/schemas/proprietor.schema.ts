@@ -29,6 +29,9 @@ export class Proprietor {
   @Prop({ unique: true, sparse: true })
   nappsMembershipId?: string;
 
+  @Prop({ type: Types.ObjectId, ref: 'School' })
+  school?: Types.ObjectId;
+
   @Prop({ 
     enum: ['pending', 'approved', 'suspended', 'rejected'], 
     default: 'pending' 
@@ -82,6 +85,30 @@ export class Proprietor {
 
   @Prop({ default: true })
   isActive: boolean;
+
+  // Payment related fields
+  @Prop({ 
+    enum: ['Not Paid', 'Pending', 'Paid', 'Partially Paid'],
+    default: 'Not Paid'
+  })
+  paymentStatus?: string;
+
+  @Prop({ 
+    enum: ['paystack', 'bank_transfer', 'cash', 'online'],
+    default: 'paystack'
+  })
+  paymentMethod?: string;
+
+  @Prop()
+  approvalEvidence?: string;
+
+  // School enrollment data
+  @Prop({ type: Number })
+  pupilsPresentedLastExam?: number;
+
+  // Chapters/associations
+  @Prop({ type: [String] })
+  chapters?: string[];
 
   // Virtual for full name
   get fullName(): string {

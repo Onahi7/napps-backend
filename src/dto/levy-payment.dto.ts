@@ -13,10 +13,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NAPPS_CHAPTERS } from '../common/constants/napps-chapters';
 
 export class InitializeLevyPaymentDto {
-  @ApiProperty({ description: 'Proprietor ID' })
+  @ApiPropertyOptional({ description: 'Proprietor ID (optional, will auto-link by email/phone)' })
   @IsString()
-  @IsNotEmpty()
-  proprietorId: string;
+  @IsOptional()
+  proprietorId?: string;
 
   @ApiProperty({ description: 'Member name' })
   @IsString()
@@ -53,7 +53,7 @@ export class InitializeLevyPaymentDto {
   @IsString({ each: true })
   wards: string[];
 
-  @ApiPropertyOptional({ description: 'Payment amount in Naira', default: 5100 })
+  @ApiPropertyOptional({ description: 'Payment amount in Naira', default: 5250 })
   @IsNumber()
   @IsOptional()
   @Min(1)
