@@ -5,37 +5,18 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    cors: {
+      origin: [
+        'http://localhost:3000', // Connect Hub
+        'http://localhost:3002', // Portal
+        'http://localhost:3001', // Backend
+      ],
+      credentials: true,
+    },
+  });
 
   const configService = app.get(ConfigService);
-
-  // Configure CORS using environment variables
-  const corsOriginEnv = configService.get<string>('CORS_ORIGIN', 'http://localhost:3000,http://localhost:3001,http://localhost:8081');
-  const corsOrigins = corsOriginEnv.split(',').map(origin => origin.trim());
-  
-  // Enable CORS for configured origins with callback to support preflight and credentials
-  app.enableCors({
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      // Allow requests with no origin (like mobile apps, Postman, or same-origin)
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-      
-      // Check if origin is in allowed list
-      if (corsOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.warn(`⚠️  Origin ${origin} not allowed by CORS. Allowed origins:`, corsOrigins);
-        callback(new Error(`Origin ${origin} not allowed by CORS`), false);
-      }
-    },
-    credentials: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type,Authorization,Accept',
-    optionsSuccessStatus: 200,
-  });
-  console.log('✅ CORS enabled for origins:', corsOrigins);
 
   // Global API prefix
   const apiPrefix = configService.get<string>('API_PREFIX', 'api/v1');
@@ -72,11 +53,11 @@ async function bootstrap() {
     customCssUrl: '/swagger-ui-custom.css',
   });
 
-  const port = process.env.PORT || configService.get<number>('PORT', 3001);
-  await app.listen(port, '0.0.0.0');
+  const port = configService.get<number>('PORT', 3001);
+  await app.listen(port);
 
-  console.log(`🚀 NAPPS Nasarawa Backend API is running on: http://0.0.0.0:${port}`);
-  console.log(`📚 API Documentation available at: http://0.0.0.0:${port}/${apiPrefix}/docs`);
+  console.log(`🚀 NAPPS Nasarawa Backend API is running on: http://localhost:${port}`);
+  console.log(`📚 API Documentation available at: http://localhost:${port}/${apiPrefix}/docs`);
   console.log(`🌍 Environment: ${configService.get<string>('NODE_ENV', 'development')}`);
 }
 
