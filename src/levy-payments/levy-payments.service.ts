@@ -17,7 +17,7 @@ import {
 @Injectable()
 export class LevyPaymentsService {
   private readonly logger = new Logger(LevyPaymentsService.name);
-  private readonly LEVY_AMOUNT_NAIRA = 5100;
+  private readonly LEVY_AMOUNT_NAIRA = 5250;
   private readonly LEVY_AMOUNT_KOBO = this.LEVY_AMOUNT_NAIRA * 100;
 
   constructor(
@@ -113,13 +113,34 @@ export class LevyPaymentsService {
     try {
       this.logger.log(`Initializing levy payment for: ${initializeLevyPaymentDto.email}`);
 
-      // Check if proprietor exists
-      const proprietor = await this.proprietorModel.findById(
-        initializeLevyPaymentDto.proprietorId
-      );
+      // Try to find proprietor by ID, email, or phone
+      let proprietor = null;
+      let proprietorId = null;
 
-      if (!proprietor) {
-        throw new NotFoundException('Proprietor not found');
+      if (initializeLevyPaymentDto.proprietorId) {
+        // If proprietorId provided, use it
+        proprietor = await this.proprietorModel.findById(
+          initializeLevyPaymentDto.proprietorId
+        );
+        if (proprietor) {
+          proprietorId = proprietor._id;
+          this.logger.log(`Linked to proprietor by ID: ${proprietorId}`);
+        }
+      } else {
+        // Try to find by email or phone
+        const query = {
+          $or: [
+            { email: initializeLevyPaymentDto.email },
+            { phone: initializeLevyPaymentDto.phone },
+          ],
+        };
+        proprietor = await this.proprietorModel.findOne(query);
+        if (proprietor) {
+          proprietorId = proprietor._id;
+          this.logger.log(`Auto-linked to proprietor by email/phone: ${proprietorId}`);
+        } else {
+          this.logger.log('No matching proprietor found - recording as public payment');
+        }
       }
 
       // Check for duplicates
@@ -149,9 +170,9 @@ export class LevyPaymentsService {
         ? initializeLevyPaymentDto.amount * 100 
         : this.LEVY_AMOUNT_KOBO;
 
-      // Create payment record
+      // Create payment record (with or without proprietor link)
       const levyPayment = new this.levyPaymentModel({
-        proprietorId: initializeLevyPaymentDto.proprietorId,
+        proprietorId: proprietorId || undefined, // Only set if found
         memberName: initializeLevyPaymentDto.memberName,
         email: initializeLevyPaymentDto.email,
         phone: initializeLevyPaymentDto.phone,
@@ -191,7 +212,7 @@ export class LevyPaymentsService {
           logo: `${frontendUrl}/napps-logo.png`,
         },
         meta: {
-          proprietorId: initializeLevyPaymentDto.proprietorId,
+          proprietorId: proprietorId?.toString() || 'none',
           chapter: initializeLevyPaymentDto.chapter,
           schoolName: initializeLevyPaymentDto.schoolName,
           wards: initializeLevyPaymentDto.wards.join(', '),
@@ -267,6 +288,58 @@ export class LevyPaymentsService {
       if (transactionData.status === 'successful') {
         updateData.status = 'success';
         updateData.paidAt = new Date(transactionData.created_at);
+        
+        // Try to link to proprietor if not already linked
+        if (!payment.proprietorId) {
+          this.logger.log('Payment not linked to proprietor - attempting auto-link');
+          const query = {
+            $or: [
+              { email: payment.email },
+              { phone: payment.phone },
+            ],
+          };
+          const proprietor = await this.proprietorModel.findOne(query);
+          if (proprietor) {
+            updateData.proprietorId = proprietor._id;
+            this.logger.log(`Auto-linked payment to proprietor: ${proprietor._id}`);
+            
+            // Update proprietor's payment status
+            try {
+              await this.proprietorModel.updateOne(
+                { _id: proprietor._id },
+                { 
+                  paymentStatus: 'paid',
+                  $set: {
+                    'metadata.levyPaymentReference': payment.reference,
+                    'metadata.levyPaymentDate': new Date(),
+                  }
+                }
+              );
+              this.logger.log(`Updated proprietor payment status to 'paid'`);
+            } catch (proprietorUpdateError: any) {
+              this.logger.error(`Failed to update proprietor payment status: ${proprietorUpdateError?.message}`);
+            }
+          } else {
+            this.logger.log('No matching proprietor found - recording as public payment');
+          }
+        } else {
+          // Payment already linked - update proprietor's payment status
+          try {
+            await this.proprietorModel.updateOne(
+              { _id: payment.proprietorId },
+              { 
+                paymentStatus: 'paid',
+                $set: {
+                  'metadata.levyPaymentReference': payment.reference,
+                  'metadata.levyPaymentDate': new Date(),
+                }
+              }
+            );
+            this.logger.log(`Updated linked proprietor payment status to 'paid'`);
+          } catch (proprietorUpdateError: any) {
+            this.logger.error(`Failed to update proprietor payment status: ${proprietorUpdateError?.message}`);
+          }
+        }
       } else if (transactionData.status === 'failed') {
         updateData.status = 'failed';
         updateData.failureReason = transactionData.processor_response;
