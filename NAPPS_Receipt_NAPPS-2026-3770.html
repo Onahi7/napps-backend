@@ -1,0 +1,312 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAPPS Receipt - NAPPS-2026-3770</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .receipt {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border: 4px solid #2980b9;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #2980b9;
+            font-size: 14px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header h2 {
+            font-size: 18px;
+            font-weight: normal;
+            opacity: 0.9;
+        }
+        
+        .receipt-info {
+            background: #ecf0f1;
+            padding: 20px 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .receipt-info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .receipt-info-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        
+        .receipt-info-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .status {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            color: #2980b9;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #2980b9;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .payment-table thead {
+            background: #ecf0f1;
+        }
+        
+        .payment-table th,
+        .payment-table td {
+            padding: 12px;
+            text-align: left;
+        }
+        
+        .payment-table th {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .payment-table tbody tr {
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .payment-table .amount {
+            text-align: right;
+            font-weight: 600;
+        }
+        
+        .total-row {
+            background: #2980b9;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .total-row td {
+            padding: 15px 12px;
+        }
+        
+        .footer {
+            background: #ecf0f1;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        
+        .footer h3 {
+            color: #2980b9;
+            margin-bottom: 15px;
+        }
+        
+        .footer p {
+            color: #7f8c8d;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .footer .timestamp {
+            font-size: 11px;
+            color: #95a5a6;
+            margin-top: 15px;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .receipt {
+                border: none;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <div class="header">
+            <div class="logo">NAPPS<br>NIGERIA</div>
+            <h1>NASARAWA STATE BRANCH</h1>
+            <h2>National Association of Proprietors of Private Schools</h2>
+            <h2 style="margin-top: 10px;">PAYMENT RECEIPT</h2>
+        </div>
+        
+        <div class="receipt-info">
+            <div class="receipt-info-item">
+                <span class="receipt-info-label">Receipt Number</span>
+                <span class="receipt-info-value">NAPPS-2026-3770</span>
+            </div>
+            <div class="receipt-info-item">
+                <span class="receipt-info-label">Reference</span>
+                <span class="receipt-info-value" style="font-size: 11px;">LEVY_1771853902234_146553</span>
+            </div>
+            <div class="receipt-info-item">
+                <span class="receipt-info-label">Date</span>
+                <span class="receipt-info-value">23 February 2026</span>
+            </div>
+            <div class="receipt-info-item">
+                <span class="receipt-info-label">Status</span>
+                <span class="receipt-info-value status">SUCCESS ✓</span>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3 class="section-title">PAYER INFORMATION</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Name</span>
+                        <span class="info-value">John Doe Test</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Email</span>
+                        <span class="info-value">test.payment.1771853899822@example.com</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Phone</span>
+                        <span class="info-value">08074732512</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Chapter</span>
+                        <span class="info-value">Lafia A</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3 class="section-title">SCHOOL INFORMATION</h3>
+                <div class="info-grid">
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <span class="info-label">School Name</span>
+                        <span class="info-value">Test International School</span>
+                    </div>
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <span class="info-label">Wards</span>
+                        <span class="info-value">Ward A, Ward B, Ward C</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3 class="section-title">PAYMENT DETAILS</h3>
+                <table class="payment-table">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th class="amount">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <strong>NAPPS NASARAWA STATE SECRETARIAT</strong><br>
+                                <span style="color: #7f8c8d; font-size: 13px;">Building Levy</span>
+                            </td>
+                            <td class="amount">₦5,500</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td>TOTAL AMOUNT PAID</td>
+                            <td class="amount">₦5,500</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <p style="margin-top: 15px; font-size: 13px; color: #7f8c8d;">
+                    Payment Method: CARD
+                </p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <h3>Thank you for your payment!</h3>
+            <p>This is an official payment receipt generated by NAPPS Nasarawa State.</p>
+            <p>For inquiries, please contact: <strong>info@nappsnasarawa.com</strong> | Tel: +234 XXX XXX XXXX</p>
+            <p class="timestamp">Generated on: 23/02/2026, 14:46:12</p>
+        </div>
+    </div>
+</body>
+</html>
