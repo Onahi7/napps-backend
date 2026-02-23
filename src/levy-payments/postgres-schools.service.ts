@@ -38,8 +38,7 @@ export class PostgresSchoolsService {
         SELECT 
           s.id,
           s.name,
-          c.name as chapter_name,
-          s.lga
+          c.name as chapter_name
         FROM schools s
         INNER JOIN chapters c ON s.chapter_id = c.id
         WHERE 1=1
@@ -64,7 +63,6 @@ export class PostgresSchoolsService {
         id: row.id.toString(),
         name: row.name,
         chapter: row.chapter_name,
-        lga: row.lga || undefined,
       }));
 
     } catch (error: any) {
