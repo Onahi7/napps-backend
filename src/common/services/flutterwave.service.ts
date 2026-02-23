@@ -67,22 +67,14 @@ export class FlutterwaveService {
   // Axios client (token set dynamically per request)
   private readonly flutterwaveClient: AxiosInstance;
 
-  // Legacy V3 secret key (FLWSECK-xxx) — used ONLY to verify old V3 transactions
-  private readonly flutterwaveV3SecretKey: string;
-
   constructor(private configService: ConfigService) {
     this.flutterwaveClientId = this.configService.get<string>('FLUTTERWAVE_CLIENT_ID') || '';
     this.flutterwaveClientSecret = this.configService.get<string>('FLUTTERWAVE_CLIENT_SECRET') || '';
     this.flutterwaveEncryptionKey = this.configService.get<string>('FLUTTERWAVE_ENCRYPTION_KEY') || '';
-    // Legacy V3 key for verifying payments created before the V4 migration
-    this.flutterwaveV3SecretKey = this.configService.get<string>('FLUTTERWAVE_SECRET_KEY') || '';
     this.isTestMode = this.configService.get<string>('NODE_ENV') !== 'production';
 
     if (!this.flutterwaveClientId || !this.flutterwaveClientSecret) {
       this.logger.warn('Flutterwave V4 credentials not set. Payment functionality will be limited.');
-    }
-    if (!this.flutterwaveV3SecretKey) {
-      this.logger.warn('FLUTTERWAVE_SECRET_KEY (V3) not set — old V3 transactions cannot be verified.');
     }
 
     this.flutterwaveClient = axios.create({
