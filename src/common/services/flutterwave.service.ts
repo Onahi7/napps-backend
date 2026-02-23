@@ -70,7 +70,7 @@ export class FlutterwaveService {
     }
 
     this.flutterwaveClient = axios.create({
-      baseURL: 'https://api.flutterwave.com/v3',
+      baseURL: 'https://api.flutterwave.com/v4', // Updated to V4
       headers: {
         Authorization: `Bearer ${this.flutterwaveSecretKey}`,
         'Content-Type': 'application/json',
