@@ -293,7 +293,10 @@ export class LevyPaymentsService {
         paymentMethod: transactionData.payment_type,
       };
 
-      if (transactionData.status === 'successful') {
+      // V3 returns 'successful', V4 returns 'succeeded'
+      const isSuccessful = transactionData.status === 'successful' || transactionData.status === 'succeeded';
+
+      if (isSuccessful) {
         updateData.status = 'success';
         updateData.paidAt = new Date(transactionData.created_at);
         
@@ -351,6 +354,8 @@ export class LevyPaymentsService {
       } else if (transactionData.status === 'failed') {
         updateData.status = 'failed';
         updateData.failureReason = transactionData.processor_response;
+      } else {
+        this.logger.warn(`Unexpected Flutterwave transaction status: ${transactionData.status}`);
       }
 
       await payment.updateOne(updateData);
@@ -360,7 +365,7 @@ export class LevyPaymentsService {
         .populate('proprietorId', 'firstName lastName email');
 
       // Send confirmation email if successful
-      if (transactionData.status === 'successful') {
+      if (isSuccessful) {
         try {
           await this.sendPaymentConfirmation(updatedPayment!);
         } catch (emailError: any) {

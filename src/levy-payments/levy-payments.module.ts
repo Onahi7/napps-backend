@@ -20,7 +20,12 @@ import { EmailService } from '../common/services/email.service';
     ]),
   ],
   controllers: [LevyPaymentsController],
-  providers: [LevyPaymentsService, PostgresSchoolsService, FlutterwaveService, EmailService],
+  providers: [
+    LevyPaymentsService, 
+    PostgresSchoolsService, 
+    FlutterwaveService, 
+    EmailService,
+  ],
   exports: [LevyPaymentsService, PostgresSchoolsService],
 })
 export class LevyPaymentsModule {}

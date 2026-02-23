@@ -9,6 +9,7 @@ import {
   IsEnum,
   Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NAPPS_CHAPTERS } from '../common/constants/napps-chapters';
 
@@ -100,11 +101,13 @@ export class CheckDuplicateDto {
 
 export class LevyPaymentQueryDto {
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   page?: number;
 
   @ApiPropertyOptional({ description: 'Items per page', default: 10 })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   limit?: number;
