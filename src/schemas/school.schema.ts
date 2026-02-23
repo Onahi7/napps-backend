@@ -24,6 +24,9 @@ export class School {
   lga?: string;
 
   @Prop()
+  chapter?: string; // NAPPS chapter the school belongs to
+
+  @Prop()
   aeqeoZone?: string;
 
   @Prop()
@@ -63,3 +66,4 @@ export const SchoolSchema = SchemaFactory.createForClass(School);
 // Index for better query performance
 SchoolSchema.index({ proprietorId: 1 });
 SchoolSchema.index({ schoolName: 1 });
+SchoolSchema.index({ chapter: 1 });

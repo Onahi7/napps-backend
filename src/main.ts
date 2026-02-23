@@ -11,8 +11,19 @@ async function bootstrap() {
         'http://localhost:3000', // Connect Hub
         'http://localhost:3002', // Portal
         'http://localhost:3001', // Backend
+        'http://localhost:8080', // Vite dev server
+        'https://nappsnasarawa.com',
+        'https://portal.nappsnasarawa.com',
+        'https://connect.nappsnasarawa.com',
+        'https://api.nappsnasarawa.com',
+        'https://lovable.dev',
+        /\.lovable\.dev$/, // Allow all Lovable preview URLs
+        /\.vercel\.app$/, // Allow Vercel preview URLs
+        /\.netlify\.app$/, // Allow Netlify preview URLs
       ],
       credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
     },
   });
 

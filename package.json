@@ -24,7 +24,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "ts-node -r tsconfig-paths/register scripts/seed-admin.ts",
     "seed:admin": "ts-node -r tsconfig-paths/register scripts/seed-admin.ts",
-    "import:proprietors": "ts-node -r tsconfig-paths/register scripts/import-proprietors.ts"
+    "import:proprietors": "ts-node -r tsconfig-paths/register scripts/import-proprietors.ts",
+    "test:school-chapters": "ts-node -r tsconfig-paths/register scripts/test-school-chapter-loading.ts",
+    "sync:chapters": "node scripts/sync-chapters-from-postgres.js"
   },
   "dependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -55,6 +57,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "paystack": "^2.0.1",
+    "pg": "^8.18.0",
     "reflect-metadata": "^0.2.2",
     "resend": "^6.0.2",
     "rxjs": "^7.8.1",
