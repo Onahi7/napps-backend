@@ -126,18 +126,36 @@ function generateHTMLReceipt(payment) {
             text-align: center;
         }
         
+        .logo-img {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 20px;
+            display: block;
+            border-radius: 50%;
+            background: white;
+            padding: 10px;
+            object-fit: contain;
+        }
+        
+        .logo-fallback {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        
         .logo {
             width: 80px;
             height: 80px;
             background: white;
             border-radius: 50%;
-            margin: 0 auto 20px;
+            margin: 0 auto;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
             color: #2980b9;
             font-size: 14px;
+            text-align: center;
+            line-height: 1.2;
         }
         
         .header h1 {
@@ -301,7 +319,13 @@ function generateHTMLReceipt(payment) {
 <body>
     <div class="receipt">
         <div class="header">
-            <div class="logo">NAPPS<br>NIGERIA</div>
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" 
+                 alt="NAPPS Logo" 
+                 class="logo-img"
+                 onerror="this.style.display='none'; document.querySelector('.logo-fallback').style.display='flex';">
+            <div class="logo-fallback" style="display: none;">
+                <div class="logo">NAPPS<br>NIGERIA</div>
+            </div>
             <h1>NASARAWA STATE BRANCH</h1>
             <h2>National Association of Proprietors of Private Schools</h2>
             <h2 style="margin-top: 10px;">PAYMENT RECEIPT</h2>
