@@ -14,10 +14,12 @@ import {
   IsUrl,
   IsEnum,
   ValidateNested,
-  IsObject
+  IsObject,
+  IsIn
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Types } from 'mongoose';
+import { NAPPS_CHAPTERS } from '../../constants/napps-chapters';
 
 export class CreateSchoolDto {
   @ApiProperty({ description: 'Proprietor ID who owns this school' })
@@ -56,6 +58,16 @@ export class CreateSchoolDto {
   @IsOptional()
   @MaxLength(100)
   lga?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'NAPPS chapter the school belongs to',
+    enum: NAPPS_CHAPTERS
+  })
+  @IsString()
+  @IsOptional()
+  @IsIn(NAPPS_CHAPTERS as unknown as string[])
+  @MaxLength(100)
+  chapter?: string;
 
   @ApiPropertyOptional({ description: 'AEQEO Zone' })
   @IsString()

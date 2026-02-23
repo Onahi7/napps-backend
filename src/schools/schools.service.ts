@@ -1,17 +1,18 @@
-import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery, SortOrder } from 'mongoose';
 import { School, SchoolDocument } from '../schemas/school.schema';
 import { Enrollment, EnrollmentDocument } from '../schemas/enrollment.schema';
 import { Proprietor, ProprietorDocument } from '../schemas/proprietor.schema';
 import { 
-  CreateSchoolDto, 
+  CreateSchoolDto,
   UpdateSchoolDto, 
   SchoolQueryDto,
   CreateEnrollmentDto,
   UpdateEnrollmentDto,
   EnrollmentQueryDto
 } from './dto/school.dto';
+import { NAPPS_CHAPTERS } from '../constants/napps-chapters';
 
 @Injectable()
 export class SchoolsService {
@@ -24,11 +25,24 @@ export class SchoolsService {
   // =============== SCHOOL MANAGEMENT ===============
 
   async createSchool(createSchoolDto: CreateSchoolDto): Promise<SchoolDocument> {
+    const logger = new Logger('SchoolsService');
+
     try {
       // Verify proprietor exists
       const proprietor = await this.proprietorModel.findById(createSchoolDto.proprietorId);
       if (!proprietor) {
         throw new NotFoundException('Proprietor not found');
+      }
+
+      // Auto-populate chapter if not provided
+      if (!createSchoolDto.chapter && proprietor.chapters && proprietor.chapters.length > 0) {
+        createSchoolDto.chapter = proprietor.chapters[0];
+        logger.log(`Auto-assigned chapter "${createSchoolDto.chapter}" to school from proprietor ${proprietor._id}`);
+      }
+
+      // Validate chapter if provided
+      if (createSchoolDto.chapter && !(NAPPS_CHAPTERS as readonly string[]).includes(createSchoolDto.chapter)) {
+        throw new BadRequestException(`Invalid chapter: ${createSchoolDto.chapter}. Must be one of: ${NAPPS_CHAPTERS.join(', ')}`);
       }
 
       // If this is marked as primary, ensure no other primary school exists for this proprietor
@@ -42,7 +56,7 @@ export class SchoolsService {
       const school = new this.schoolModel(createSchoolDto);
       return await school.save();
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
         throw error;
       }
       throw new BadRequestException(error.message || 'Failed to create school');

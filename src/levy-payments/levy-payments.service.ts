@@ -17,7 +17,7 @@ import {
 @Injectable()
 export class LevyPaymentsService {
   private readonly logger = new Logger(LevyPaymentsService.name);
-  private readonly LEVY_AMOUNT_NAIRA = 5250;
+  private readonly LEVY_AMOUNT_NAIRA = 5500;
   private readonly LEVY_AMOUNT_KOBO = this.LEVY_AMOUNT_NAIRA * 100;
 
   constructor(
@@ -80,11 +80,18 @@ export class LevyPaymentsService {
   /**
    * Get all schools for dropdown
    */
-  async getAllSchools(): Promise<Array<{ id: string; name: string; lga?: string }>> {
+  async getAllSchools(chapter?: string): Promise<Array<{ id: string; name: string; lga?: string; chapter?: string }>> {
     try {
+      const filter: any = { isActive: true };
+      
+      // Filter by chapter if provided
+      if (chapter) {
+        filter.chapter = chapter;
+      }
+
       const schools = await this.schoolModel
-        .find({ isActive: true })
-        .select('schoolName lga')
+        .find(filter)
+        .select('schoolName lga chapter')
         .sort({ schoolName: 1 })
         .lean();
 
@@ -92,6 +99,7 @@ export class LevyPaymentsService {
         id: school._id.toString(),
         name: school.schoolName,
         lga: school.lga,
+        chapter: school.chapter,
       }));
     } catch (error: any) {
       this.logger.error(`Failed to get schools: ${error?.message || error}`);

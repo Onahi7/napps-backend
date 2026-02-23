@@ -14,9 +14,11 @@ import {
   ApiTags, 
   ApiOperation, 
   ApiResponse, 
-  ApiBearerAuth 
+  ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { LevyPaymentsService } from './levy-payments.service';
+import { PostgresSchoolsService } from './postgres-schools.service';
 import {
   InitializeLevyPaymentDto,
   VerifyLevyPaymentDto,
@@ -30,7 +32,10 @@ import {
 export class LevyPaymentsController {
   private readonly logger = new Logger(LevyPaymentsController.name);
 
-  constructor(private readonly levyPaymentsService: LevyPaymentsService) {}
+  constructor(
+    private readonly levyPaymentsService: LevyPaymentsService,
+    private readonly postgresSchoolsService: PostgresSchoolsService,
+  ) {}
 
   @Post('initialize')
   @HttpCode(HttpStatus.OK)
@@ -90,7 +95,8 @@ export class LevyPaymentsController {
   }
 
   @Get('schools')
-  @ApiOperation({ summary: 'Get all schools for dropdown' })
+  @ApiOperation({ summary: 'Get all schools for dropdown (optionally filtered by chapter)' })
+  @ApiQuery({ name: 'chapter', required: false, description: 'Filter schools by chapter name' })
   @ApiResponse({ 
     status: 200, 
     description: 'Schools retrieved successfully',
@@ -102,12 +108,75 @@ export class LevyPaymentsController {
           id: { type: 'string' },
           name: { type: 'string' },
           lga: { type: 'string' },
+          chapter: { type: 'string' },
         },
       },
     },
   })
-  async getAllSchools() {
-    return await this.levyPaymentsService.getAllSchools();
+  async getAllSchools(@Query('chapter') chapter?: string) {
+    return await this.levyPaymentsService.getAllSchools(chapter);
+  }
+
+  @Get('schools/postgres')
+  @ApiOperation({ summary: 'Get schools from PostgreSQL database (with accurate chapter mappings)' })
+  @ApiQuery({ name: 'chapter', required: false, description: 'Filter schools by chapter name' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Schools retrieved successfully from PostgreSQL',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          lga: { type: 'string' },
+          chapter: { type: 'string' },
+        },
+      },
+    },
+  })
+  async getSchoolsFromPostgres(@Query('chapter') chapter?: string) {
+    this.logger.log(`Fetching schools from PostgreSQL${chapter ? ` for chapter: ${chapter}` : ''}`);
+    return await this.postgresSchoolsService.getSchoolsByChapter(chapter);
+  }
+
+  @Get('chapters/postgres')
+  @ApiOperation({ summary: 'Get all chapters from PostgreSQL database' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Chapters retrieved successfully',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'number' },
+          name: { type: 'string' },
+        },
+      },
+    },
+  })
+  async getChaptersFromPostgres() {
+    this.logger.log('Fetching chapters from PostgreSQL');
+    return await this.postgresSchoolsService.getAllChapters();
+  }
+
+  @Get('chapters/stats')
+  @ApiOperation({ summary: 'Get school count by chapter from PostgreSQL' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Chapter statistics retrieved successfully',
+    schema: {
+      type: 'object',
+      additionalProperties: {
+        type: 'number',
+      },
+    },
+  })
+  async getChapterStats() {
+    this.logger.log('Fetching chapter statistics from PostgreSQL');
+    return await this.postgresSchoolsService.getSchoolCountByChapter();
   }
 
   @Get()

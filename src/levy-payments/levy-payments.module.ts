@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { LevyPaymentsController } from './levy-payments.controller';
 import { LevyPaymentsService } from './levy-payments.service';
+import { PostgresSchoolsService } from './postgres-schools.service';
 import { LevyPayment, LevyPaymentSchema } from '../schemas/levy-payment.schema';
 import { Proprietor, ProprietorSchema } from '../schemas/proprietor.schema';
 import { School, SchoolSchema } from '../schemas/school.schema';
@@ -19,7 +20,7 @@ import { EmailService } from '../common/services/email.service';
     ]),
   ],
   controllers: [LevyPaymentsController],
-  providers: [LevyPaymentsService, FlutterwaveService, EmailService],
-  exports: [LevyPaymentsService],
+  providers: [LevyPaymentsService, PostgresSchoolsService, FlutterwaveService, EmailService],
+  exports: [LevyPaymentsService, PostgresSchoolsService],
 })
 export class LevyPaymentsModule {}
