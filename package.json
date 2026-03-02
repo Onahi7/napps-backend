@@ -51,6 +51,8 @@
     "class-validator": "^0.14.2",
     "cloudinary": "^2.7.0",
     "csv-parser": "^3.2.0",
+    "jspdf": "^4.2.0",
+    "jspdf-autotable": "^5.0.7",
     "mongoose": "^8.18.0",
     "multer": "^2.0.2",
     "next-auth": "^4.24.11",

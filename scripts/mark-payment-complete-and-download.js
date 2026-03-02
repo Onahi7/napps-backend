@@ -4,11 +4,13 @@
  */
 
 const mongoose = require('mongoose');
-const jsPDF = require('jspdf');
+const { jsPDF } = require('jspdf');
 require('jspdf-autotable');
+const fs = require('fs');
+const path = require('path');
 
 // Payment reference from the test
-const PAYMENT_REFERENCE = 'LEVY_1771853902234_146553';
+const PAYMENT_REFERENCE = process.argv[2] || 'LEVY_1771853902234_146553';
 
 const MONGODB_URI = process.env.MONGODB_URI || 
   'mongodb+srv://mmmnigeriaschool12_db_user:Iamhardy_7*@cluster0.abdi7yt.mongodb.net/napps_nasarawa?retryWrites=true&w=majority&appName=Cluster0&ssl=true&authSource=admin';
@@ -38,10 +40,11 @@ async function markPaymentComplete() {
     console.log(`   - Member: ${payment.memberName}`);
     console.log(`   - Email: ${payment.email}\n`);
 
-    // Update payment to success
+    // Update payment to success (use yesterday's date: 23/02/2026)
+    const yesterdayDate = new Date('2026-02-23T16:10:07');
     const updateData = {
       status: 'success',
-      paidAt: new Date(),
+      paidAt: yesterdayDate,
       flutterwaveTransactionId: `FLW_TEST_${Date.now()}`,
       flutterwavePaymentId: `flwref_${Date.now()}`,
       gatewayResponse: 'Successful',
@@ -87,34 +90,55 @@ function generatePDFReceipt(paymentData) {
   const margin = 20;
   const contentWidth = pageWidth - 2 * margin;
 
-  // Colors
-  const primaryColor = [41, 128, 185]; // Blue
+  // NAPPS Colors - Light Green theme
+  const primaryGreen = [34, 139, 34]; // Forest Green
+  const lightGreen = [144, 238, 144]; // Light Green
+  const darkGreen = [0, 100, 0]; // Dark Green
   const secondaryColor = [52, 73, 94]; // Dark gray
-  const lightGray = [236, 240, 241];
-  const successGreen = [39, 174, 96];
+  const lightGray = [240, 255, 240]; // Honeydew (light green tint)
+  const successGreen = [34, 139, 34];
 
   let currentY = margin;
 
-  // Header background
-  doc.setFillColor(...primaryColor);
+  // Header background - Light Green
+  doc.setFillColor(...lightGreen);
   doc.rect(0, 0, pageWidth, 50, 'F');
 
-  // Logo placeholder
-  doc.setFillColor(255, 255, 255);
-  doc.circle(pageWidth - 35, 25, 15, 'F');
-  doc.setFontSize(10);
-  doc.setTextColor(...primaryColor);
-  doc.text('NAPPS', pageWidth - 35, 27, { align: 'center' });
+  // Add NAPPS Logo (using the logo from public folder)
+  const logoPath = path.join(__dirname, '../public/napps-logo.png');
+  
+  try {
+    if (fs.existsSync(logoPath)) {
+      const logoBuffer = fs.readFileSync(logoPath);
+      const logoBase64 = logoBuffer.toString('base64');
+      doc.addImage(`data:image/png;base64,${logoBase64}`, 'PNG', pageWidth - 45, 10, 30, 30);
+    } else {
+      // Fallback logo circle
+      doc.setFillColor(255, 255, 255);
+      doc.circle(pageWidth - 35, 25, 15, 'F');
+      doc.setFontSize(10);
+      doc.setTextColor(...primaryGreen);
+      doc.text('NAPPS', pageWidth - 35, 27, { align: 'center' });
+    }
+  } catch (error) {
+    // Fallback logo circle
+    doc.setFillColor(255, 255, 255);
+    doc.circle(pageWidth - 35, 25, 15, 'F');
+    doc.setFontSize(10);
+    doc.setTextColor(...primaryGreen);
+    doc.text('NAPPS', pageWidth - 35, 27, { align: 'center' });
+  }
 
   // Title
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(...darkGreen);
   doc.text('PAYMENT RECEIPT', margin, 30);
 
   // Organization name
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...primaryGreen);
   doc.text('National Association of Proprietors of Private Schools', margin, 40);
   doc.text('Nasarawa State Chapter', margin, 46);
 
@@ -156,13 +180,13 @@ function generatePDFReceipt(paymentData) {
   currentY += 35;
 
   // Payer Information
-  doc.setTextColor(...primaryColor);
+  doc.setTextColor(...primaryGreen);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text('PAYER INFORMATION', margin, currentY);
 
   currentY += 8;
-  doc.setDrawColor(...primaryColor);
+  doc.setDrawColor(...primaryGreen);
   doc.setLineWidth(0.5);
   doc.line(margin, currentY, pageWidth - margin, currentY);
 
@@ -188,13 +212,13 @@ function generatePDFReceipt(paymentData) {
   currentY += 5;
 
   // School Information
-  doc.setTextColor(...primaryColor);
+  doc.setTextColor(...primaryGreen);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text('SCHOOL INFORMATION', margin, currentY);
 
   currentY += 8;
-  doc.setDrawColor(...primaryColor);
+  doc.setDrawColor(...primaryGreen);
   doc.line(margin, currentY, pageWidth - margin, currentY);
 
   currentY += 8;
@@ -215,13 +239,13 @@ function generatePDFReceipt(paymentData) {
   currentY += 15;
 
   // Payment Details
-  doc.setTextColor(...primaryColor);
+  doc.setTextColor(...primaryGreen);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text('PAYMENT DETAILS', margin, currentY);
 
   currentY += 8;
-  doc.setDrawColor(...primaryColor);
+  doc.setDrawColor(...primaryGreen);
   doc.line(margin, currentY, pageWidth - margin, currentY);
 
   currentY += 8;
@@ -244,7 +268,7 @@ function generatePDFReceipt(paymentData) {
   doc.text('BUILDING LEVY', margin + 5, currentY + 7);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text(`₦${(paymentData.amount / 100).toLocaleString()}`, pageWidth - margin - 40, currentY + 5);
+  doc.text(`NGN ${(paymentData.amount / 100).toLocaleString()}`, pageWidth - margin - 40, currentY + 5);
 
   currentY += 12;
   doc.setDrawColor(...secondaryColor);
@@ -254,7 +278,7 @@ function generatePDFReceipt(paymentData) {
   currentY += 8;
 
   // Total
-  doc.setFillColor(...primaryColor);
+  doc.setFillColor(...primaryGreen);
   doc.rect(margin, currentY, contentWidth, 12, 'F');
 
   doc.setFontSize(12);
@@ -262,7 +286,7 @@ function generatePDFReceipt(paymentData) {
   doc.setTextColor(255, 255, 255);
   doc.text('TOTAL AMOUNT PAID', margin + 5, currentY + 8);
   doc.setFontSize(14);
-  doc.text(`₦${(paymentData.amount / 100).toLocaleString()}`, pageWidth - margin - 40, currentY + 8);
+  doc.text(`NGN ${(paymentData.amount / 100).toLocaleString()}`, pageWidth - margin - 40, currentY + 8);
 
   currentY += 20;
 
@@ -277,7 +301,7 @@ function generatePDFReceipt(paymentData) {
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...primaryColor);
+  doc.setTextColor(...primaryGreen);
   doc.text('Thank you for your payment!', pageWidth / 2, footerY, { align: 'center' });
 
   doc.setFontSize(8);
@@ -296,7 +320,7 @@ function generatePDFReceipt(paymentData) {
     { align: 'center' }
   );
 
-  doc.setDrawColor(...primaryColor);
+  doc.setDrawColor(...primaryGreen);
   doc.setLineWidth(0.5);
   doc.line(margin, footerY + 16, pageWidth - margin, footerY + 16);
 
@@ -310,7 +334,7 @@ function generatePDFReceipt(paymentData) {
   );
 
   // Save the PDF
-  const fileName = `NAPPS_Levy_Receipt_${paymentData.receiptNumber}.pdf`;
+  const fileName = `NAPPS_Levy_Receipt_${paymentData.receiptNumber}_${Date.now()}.pdf`;
   doc.save(fileName);
 
   console.log(`✅ PDF Receipt Generated: ${fileName}\n`);
