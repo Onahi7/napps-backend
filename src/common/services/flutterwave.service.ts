@@ -82,6 +82,7 @@ export class FlutterwaveService {
   private readonly flutterwaveHostedSecretKey: string;
   private readonly flutterwaveEncryptionKey: string;
   private readonly v4BaseUrl: string;
+  private readonly isTestMode: boolean;
 
   // OAuth token cache
   private accessToken: string | null = null;
@@ -97,6 +98,7 @@ export class FlutterwaveService {
     this.flutterwaveEncryptionKey = this.configService.get<string>('FLUTTERWAVE_ENCRYPTION_KEY') || '';
 
     const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    this.isTestMode = !isProduction;
     this.v4BaseUrl = isProduction
       ? 'https://api.flutterwave.com'
       : 'https://developersandbox-api.flutterwave.com';
