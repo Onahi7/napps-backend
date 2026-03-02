@@ -51,8 +51,8 @@ export class LevyPayment {
   paymentUrl?: string;
 
   @Prop({ 
-    enum: ['card', 'bank_transfer', 'ussd', 'mobile_money', 'other'],
-    default: 'card'
+    enum: ['card', 'bank_transfer', 'ussd', 'mobile_money', 'opay', 'other'],
+    default: 'other'
   })
   paymentMethod: string;
 

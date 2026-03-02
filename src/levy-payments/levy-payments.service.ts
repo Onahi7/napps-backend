@@ -227,11 +227,16 @@ export class LevyPaymentsService {
         },
       });
 
-      // Update payment with Flutterwave details
-      await levyPayment.updateOne({
+      const updatePayload: any = {
         paymentUrl: flutterwaveResponse.link,
         status: 'processing',
-      });
+      };
+
+      if (flutterwaveResponse.chargeId) {
+        updatePayload.flutterwaveTransactionId = flutterwaveResponse.chargeId;
+      }
+
+      await levyPayment.updateOne(updatePayload);
 
       this.logger.log(`Levy payment initialized successfully: ${reference}`);
 
@@ -278,27 +283,41 @@ export class LevyPaymentsService {
         return payment;
       }
 
-      // Verify with Flutterwave
-      const verificationResponse = await this.flutterwaveService.verifyPayment(
-        verifyLevyPaymentDto.reference
-      );
+      // Route to V4 or legacy V3 based on stored charge ID
+      const chargeId = payment.flutterwaveTransactionId;
+      const isV4Charge = !!chargeId && chargeId.startsWith('chg_');
 
-      const transactionData = verificationResponse.data;
+      let transactionData: any;
+      const updateData: any = {};
 
-      // Update payment based on verification
-      const updateData: any = {
-        flutterwaveTransactionId: transactionData.id.toString(),
-        flutterwavePaymentId: transactionData.flw_ref,
-        gatewayResponse: transactionData.processor_response,
-        paymentMethod: transactionData.payment_type,
-      };
+      if (isV4Charge) {
+        // V4 path: verify by Flutterwave charge ID
+        const chargeResponse = await this.flutterwaveService.verifyCharge(chargeId!);
+        transactionData = chargeResponse.data;
+        updateData.flutterwaveTransactionId = transactionData.id;
+        updateData.flutterwavePaymentId = transactionData.payment_method_details?.id || '';
+        updateData.gatewayResponse = transactionData.processor_response?.type || '';
+        updateData.paymentMethod = transactionData.payment_method_details?.type || 'other';
+      } else {
+        // Legacy V3 path: verify by tx_ref (may fail for payments made with old key)
+        this.logger.warn(`No V4 chargeId for payment ${verifyLevyPaymentDto.reference} — trying legacy V3 verify`);
+        const verificationResponse = await this.flutterwaveService.verifyPayment(
+          verifyLevyPaymentDto.reference,
+        );
+        transactionData = verificationResponse.data;
+        updateData.flutterwaveTransactionId = transactionData.id?.toString();
+        updateData.flutterwavePaymentId = transactionData.flw_ref;
+        updateData.gatewayResponse = transactionData.processor_response;
+        updateData.paymentMethod = transactionData.payment_type;
+      }
 
       // V3 returns 'successful', V4 returns 'succeeded'
       const isSuccessful = transactionData.status === 'successful' || transactionData.status === 'succeeded';
 
       if (isSuccessful) {
         updateData.status = 'success';
-        updateData.paidAt = new Date(transactionData.created_at);
+        // V4 uses created_datetime, V3 uses created_at
+        updateData.paidAt = new Date(transactionData.created_datetime || transactionData.created_at);
         
         // Try to link to proprietor if not already linked
         if (!payment.proprietorId) {
@@ -353,7 +372,11 @@ export class LevyPaymentsService {
         }
       } else if (transactionData.status === 'failed') {
         updateData.status = 'failed';
-        updateData.failureReason = transactionData.processor_response;
+        // V4 processor_response is an object; V3 is a string
+        const procResponse = transactionData.processor_response;
+        updateData.failureReason = typeof procResponse === 'string'
+          ? procResponse
+          : procResponse?.type || procResponse?.code || 'Payment failed';
       } else {
         this.logger.warn(`Unexpected Flutterwave transaction status: ${transactionData.status}`);
       }
