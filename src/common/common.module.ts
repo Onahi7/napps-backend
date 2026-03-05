@@ -8,10 +8,13 @@ import { FileUploadService } from './services/file-upload.service';
 import { EmailService } from './services/email.service';
 import { CmsService } from './services/cms.service';
 import { FeeConfigurationService } from './services/fee-configuration.service';
+import { FlutterwaveService } from './services/flutterwave.service';
 
 // Controllers
 import { CmsController } from './controllers/cms.controller';
 import { FeeConfigurationController } from './controllers/fee-configuration.controller';
+import { FastPaymentController } from './controllers/fast-payment.controller';
+import { FlutterwaveWebhookController } from './controllers/flutterwave-webhook.controller';
 
 // Schemas
 import { HomepageContent, HomepageContentSchema } from '../schemas/homepage-content.schema';
@@ -32,18 +35,20 @@ import { FeeConfiguration, FeeConfigurationSchema } from '../schemas/fee-configu
       },
     }),
   ],
-  controllers: [CmsController, FeeConfigurationController],
+  controllers: [CmsController, FeeConfigurationController, FastPaymentController, FlutterwaveWebhookController],
   providers: [
     FileUploadService,
     EmailService,
     CmsService,
     FeeConfigurationService,
+    FlutterwaveService,
   ],
   exports: [
     FileUploadService,
     EmailService,
     CmsService,
     FeeConfigurationService,
+    FlutterwaveService,
   ],
 })
 export class CommonModule {}
