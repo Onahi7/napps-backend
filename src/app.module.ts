@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { CommonModule } from './common/common.module';
 import { LevyPaymentsModule } from './levy-payments/levy-payments.module';
 import { ProprietorsModule } from './proprietors/proprietors.module';
 import { AuthModule } from './auth/auth.module';
@@ -40,6 +41,7 @@ import { ConnectHubModule } from './connect-hub/connect-hub.module';
     ]),
 
     // Feature modules
+    CommonModule,
     LevyPaymentsModule,
     ProprietorsModule,
     AuthModule,
