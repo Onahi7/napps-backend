@@ -83,14 +83,6 @@ class PaymentMethodDto {
   })
   @IsString()
   type: string;
-
-  @ApiProperty({ 
-    required: false,
-    description: 'Additional payment method data (e.g., card details, mobile money info)',
-  })
-  @IsObject()
-  @IsOptional()
-  [key: string]: any;
 }
 
 export class FastPaymentDto {
