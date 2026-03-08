@@ -181,7 +181,13 @@ export class FlutterwaveService {
   constructor(private configService: ConfigService) {
     this.flutterwaveClientId = this.configService.get<string>('FLUTTERWAVE_CLIENT_ID') || '';
     this.flutterwaveClientSecret = this.configService.get<string>('FLUTTERWAVE_CLIENT_SECRET') || '';
-    this.flutterwaveHostedSecretKey = this.configService.get<string>('FLUTTERWAVE_SECRET_KEY') || '';
+    // Use FLUTTERWAVE_CLIENT_SECRET from .env as the primary secret.
+    // Keep legacy names as fallback for backward compatibility.
+    this.flutterwaveHostedSecretKey =
+      this.configService.get<string>('FLUTTERWAVE_CLIENT_SECRET') ||
+      this.configService.get<string>('FLUTTERWAVE_SECRET_KEY') ||
+      this.configService.get<string>('FLUTTERWAVE_HOSTED_SECRET_KEY') ||
+      '';
     this.flutterwaveEncryptionKey = this.configService.get<string>('FLUTTERWAVE_ENCRYPTION_KEY') || '';
 
     const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
@@ -194,7 +200,9 @@ export class FlutterwaveService {
       this.logger.warn('Flutterwave V4 credentials not set. Payment functionality will be limited.');
     }
     if (!this.flutterwaveHostedSecretKey) {
-      this.logger.warn('FLUTTERWAVE_SECRET_KEY not set. Hosted checkout initialization will fail until this is configured.');
+      this.logger.warn(
+        'Flutterwave secret key not set. Configure FLUTTERWAVE_CLIENT_SECRET (preferred) or legacy FLUTTERWAVE_SECRET_KEY.',
+      );
     }
 
     this.flutterwaveClient = axios.create({
@@ -302,7 +310,7 @@ export class FlutterwaveService {
 
       if (!this.flutterwaveHostedSecretKey) {
         throw new BadRequestException(
-          'FLUTTERWAVE_SECRET_KEY is required for hosted checkout initialization',
+          'FLUTTERWAVE_CLIENT_SECRET is required for hosted checkout initialization',
         );
       }
 
@@ -373,11 +381,12 @@ export class FlutterwaveService {
     try {
       this.logger.log(`Verifying via V3 by reference (legacy): ${txRef}`);
 
-      // V3 endpoint still lives at api.flutterwave.com/v3 regardless of env
-      const token = await this.getAccessToken();
+      // V3 endpoint still lives at api.flutterwave.com/v3 regardless of env.
+      // Prefer .env secret key (FLUTTERWAVE_CLIENT_SECRET), then OAuth fallback.
+      const authToken = this.flutterwaveHostedSecretKey || (await this.getAccessToken());
       const response = await axios.get(
         `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${encodeURIComponent(txRef)}`,
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${authToken}` } },
       );
 
       if (response.data.status === 'success') {
