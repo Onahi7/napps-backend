@@ -194,26 +194,40 @@ export class LevyPaymentsService {
 
       await levyPayment.save();
 
-      // Initialize Flutterwave payment
+      // Initialize Flutterwave V4 direct charge.
+      // Keep returning paymentUrl so current frontend redirect flow still works.
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:8080';
       const callbackUrl = initializeLevyPaymentDto.callbackUrl || 
         `${frontendUrl}/levy-payment/verify?reference=${reference}`;
 
-      const flutterwaveResponse = await this.flutterwaveService.initializePayment({
-        tx_ref: reference,
-        amount: amount / 100, // Convert kobo to Naira
+      const nameParts = initializeLevyPaymentDto.memberName.trim().split(/\s+/);
+      const firstName = nameParts[0] || initializeLevyPaymentDto.memberName;
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : firstName;
+
+      const normalizedPhone = initializeLevyPaymentDto.phone
+        .replace(/[\s\-()]/g, '')
+        .replace(/^\+?234/, '')
+        .replace(/^0/, '');
+
+      const directChargeResponse = await this.flutterwaveService.createDirectCharge({
+        amount,
         currency: 'NGN',
-        redirect_url: callbackUrl,
+        reference,
         customer: {
           email: initializeLevyPaymentDto.email,
-          phonenumber: initializeLevyPaymentDto.phone,
-          name: initializeLevyPaymentDto.memberName,
+          name: {
+            first: firstName,
+            last: lastName,
+          },
+          phone: {
+            country_code: '234',
+            number: normalizedPhone,
+          },
         },
-        customizations: {
-          title: 'NAPPS Levy Payment',
-          description: `Levy payment for ${initializeLevyPaymentDto.chapter} chapter`,
-          logo: `${frontendUrl}/napps-logo.png`,
+        payment_method: {
+          type: initializeLevyPaymentDto.paymentMethodType || 'opay',
         },
+        redirect_url: callbackUrl,
         meta: {
           proprietorId: proprietorId?.toString() || 'none',
           chapter: initializeLevyPaymentDto.chapter,
@@ -222,14 +236,19 @@ export class LevyPaymentsService {
         },
       });
 
+      const paymentUrl = directChargeResponse.data.next_action?.redirect_url?.url;
+      if (!paymentUrl) {
+        throw new BadRequestException(
+          `V4 payment initialization returned unsupported next_action: ${directChargeResponse.data.next_action?.type || 'unknown'}`,
+        );
+      }
+
       const updatePayload: any = {
-        paymentUrl: flutterwaveResponse.link,
+        paymentUrl,
         status: 'processing',
       };
 
-      if (flutterwaveResponse.chargeId) {
-        updatePayload.flutterwaveTransactionId = flutterwaveResponse.chargeId;
-      }
+      updatePayload.flutterwaveTransactionId = directChargeResponse.data.id;
 
       await levyPayment.updateOne(updatePayload);
 
@@ -237,7 +256,7 @@ export class LevyPaymentsService {
 
       return {
         reference,
-        paymentUrl: flutterwaveResponse.link,
+        paymentUrl,
         amount: amount / 100,
         receiptNumber,
       };
@@ -600,7 +619,7 @@ export class LevyPaymentsService {
   private generatePaymentReference(): string {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1000000);
-    return `LEVY_${timestamp}_${random}`;
+    return `LEVY${timestamp}${random}`;
   }
 
   /**
