@@ -78,6 +78,15 @@ export class InitializeLevyPaymentDto {
   @ApiPropertyOptional({ description: 'Additional metadata' })
   @IsOptional()
   metadata?: Record<string, any>;
+
+  @ApiPropertyOptional({
+    description: 'V4 payment method type',
+    enum: ['opay', 'card', 'bank_transfer', 'ussd', 'mobile_money'],
+    default: 'opay',
+  })
+  @IsString()
+  @IsOptional()
+  paymentMethodType?: 'opay' | 'card' | 'bank_transfer' | 'ussd' | 'mobile_money';
 }
 
 export class VerifyLevyPaymentDto {

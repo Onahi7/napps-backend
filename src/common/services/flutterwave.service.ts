@@ -181,10 +181,9 @@ export class FlutterwaveService {
   constructor(private configService: ConfigService) {
     this.flutterwaveClientId = this.configService.get<string>('FLUTTERWAVE_CLIENT_ID') || '';
     this.flutterwaveClientSecret = this.configService.get<string>('FLUTTERWAVE_CLIENT_SECRET') || '';
-    // Use FLUTTERWAVE_CLIENT_SECRET from .env as the primary secret.
-    // Keep legacy names as fallback for backward compatibility.
+    // Hosted checkout uses Flutterwave V3 /payments and requires a secret key.
+    // Do not use FLUTTERWAVE_CLIENT_SECRET (OAuth client secret) as Bearer token.
     this.flutterwaveHostedSecretKey =
-      this.configService.get<string>('FLUTTERWAVE_CLIENT_SECRET') ||
       this.configService.get<string>('FLUTTERWAVE_SECRET_KEY') ||
       this.configService.get<string>('FLUTTERWAVE_HOSTED_SECRET_KEY') ||
       '';
@@ -201,7 +200,7 @@ export class FlutterwaveService {
     }
     if (!this.flutterwaveHostedSecretKey) {
       this.logger.warn(
-        'Flutterwave secret key not set. Configure FLUTTERWAVE_CLIENT_SECRET (preferred) or legacy FLUTTERWAVE_SECRET_KEY.',
+        'Flutterwave hosted checkout key not set. Configure FLUTTERWAVE_SECRET_KEY (or FLUTTERWAVE_HOSTED_SECRET_KEY).',
       );
     }
 
@@ -310,7 +309,7 @@ export class FlutterwaveService {
 
       if (!this.flutterwaveHostedSecretKey) {
         throw new BadRequestException(
-          'FLUTTERWAVE_CLIENT_SECRET is required for hosted checkout initialization',
+          'FLUTTERWAVE_SECRET_KEY is required for hosted checkout initialization',
         );
       }
 
@@ -381,12 +380,16 @@ export class FlutterwaveService {
     try {
       this.logger.log(`Verifying via V3 by reference (legacy): ${txRef}`);
 
-      // V3 endpoint still lives at api.flutterwave.com/v3 regardless of env.
-      // Prefer .env secret key (FLUTTERWAVE_CLIENT_SECRET), then OAuth fallback.
-      const authToken = this.flutterwaveHostedSecretKey || (await this.getAccessToken());
+      // V3 endpoint still lives at api.flutterwave.com/v3 and requires secret key auth.
+      if (!this.flutterwaveHostedSecretKey) {
+        throw new BadRequestException(
+          'FLUTTERWAVE_SECRET_KEY is required for legacy V3 reference verification',
+        );
+      }
+
       const response = await axios.get(
         `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${encodeURIComponent(txRef)}`,
-        { headers: { Authorization: `Bearer ${authToken}` } },
+        { headers: { Authorization: `Bearer ${this.flutterwaveHostedSecretKey}` } },
       );
 
       if (response.data.status === 'success') {
