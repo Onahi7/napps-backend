@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Model, FilterQuery, SortOrder } from 'mongoose';
@@ -151,22 +151,16 @@ export class LevyPaymentsService {
         }
       }
 
-      // Check for duplicates
+      // Check for existing payment for traceability, but do not block initialization.
       const duplicateCheck = await this.checkDuplicate({
         email: initializeLevyPaymentDto.email,
         phone: initializeLevyPaymentDto.phone,
       });
 
-      if (duplicateCheck.isDuplicate && !initializeLevyPaymentDto.isContinuation) {
-        if (duplicateCheck.payment?.status === 'success') {
-          throw new ConflictException(
-            'Payment already completed with this email/phone. Please use a different email or phone number.'
-          );
-        } else {
-          throw new ConflictException(
-            'A payment is already in progress with this email/phone. You can continue with the existing payment.'
-          );
-        }
+      if (duplicateCheck.isDuplicate) {
+        this.logger.warn(
+          `Duplicate payment attempt detected for ${initializeLevyPaymentDto.email}/${initializeLevyPaymentDto.phone}; initializing a new payment reference.`,
+        );
       }
 
       // Generate unique reference
@@ -192,8 +186,9 @@ export class LevyPaymentsService {
         reference,
         receiptNumber,
         status: 'pending',
-        isContinuation: initializeLevyPaymentDto.isContinuation || false,
-        previousPaymentReference: initializeLevyPaymentDto.previousPaymentReference,
+        isContinuation: initializeLevyPaymentDto.isContinuation || duplicateCheck.isDuplicate,
+        previousPaymentReference:
+          initializeLevyPaymentDto.previousPaymentReference || duplicateCheck.payment?.reference,
         metadata: initializeLevyPaymentDto.metadata || {},
       });
 
@@ -250,7 +245,6 @@ export class LevyPaymentsService {
       this.logger.error(`Levy payment initialization failed: ${error?.message || error}`);
       if (
         error instanceof NotFoundException ||
-        error instanceof ConflictException ||
         error instanceof BadRequestException
       ) {
         throw error;
