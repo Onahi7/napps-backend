@@ -2,10 +2,10 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Model, FilterQuery, SortOrder } from 'mongoose';
+import axios, { AxiosInstance } from 'axios';
 import { LevyPayment, LevyPaymentDocument } from '../schemas/levy-payment.schema';
 import { Proprietor, ProprietorDocument } from '../schemas/proprietor.schema';
 import { School, SchoolDocument } from '../schemas/school.schema';
-import { FlutterwaveService } from '../common/services/flutterwave.service';
 import { EmailService } from '../common/services/email.service';
 import {
   InitializeLevyPaymentDto,
@@ -19,15 +19,28 @@ export class LevyPaymentsService {
   private readonly logger = new Logger(LevyPaymentsService.name);
   private readonly LEVY_AMOUNT_NAIRA = 5500;
   private readonly LEVY_AMOUNT_KOBO = this.LEVY_AMOUNT_NAIRA * 100;
+  private readonly paystackClient: AxiosInstance;
+  private readonly paystackSecretKey: string;
+  private readonly isSimulationMode: boolean;
 
   constructor(
     private configService: ConfigService,
-    private flutterwaveService: FlutterwaveService,
     private emailService: EmailService,
     @InjectModel(LevyPayment.name) private levyPaymentModel: Model<LevyPaymentDocument>,
     @InjectModel(Proprietor.name) private proprietorModel: Model<ProprietorDocument>,
     @InjectModel(School.name) private schoolModel: Model<SchoolDocument>,
-  ) {}
+  ) {
+    this.paystackSecretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY') || '';
+    this.isSimulationMode = !this.paystackSecretKey || this.paystackSecretKey === 'simulation';
+
+    this.paystackClient = axios.create({
+      baseURL: 'https://api.paystack.co',
+      headers: {
+        Authorization: `Bearer ${this.paystackSecretKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  }
 
   /**
    * Check for duplicate email or phone
@@ -194,65 +207,52 @@ export class LevyPaymentsService {
 
       await levyPayment.save();
 
-      // Initialize Flutterwave V4 direct charge.
-      // Keep returning paymentUrl so current frontend redirect flow still works.
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:8080';
-      const callbackUrl = initializeLevyPaymentDto.callbackUrl || 
+      const callbackUrl = initializeLevyPaymentDto.callbackUrl ||
         `${frontendUrl}/levy-payment/verify?reference=${reference}`;
 
-      const nameParts = initializeLevyPaymentDto.memberName.trim().split(/\s+/);
-      const firstName = nameParts[0] || initializeLevyPaymentDto.memberName;
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : firstName;
+      let paymentUrl: string;
+      let paystackRef: string | undefined;
 
-      const normalizedPhone = initializeLevyPaymentDto.phone
-        .replace(/[\s\-()]/g, '')
-        .replace(/^\+?234/, '')
-        .replace(/^0/, '');
-
-      const directChargeResponse = await this.flutterwaveService.createDirectCharge({
-        amount,
-        currency: 'NGN',
-        reference,
-        customer: {
+      if (this.isSimulationMode) {
+        this.logger.warn('Paystack in simulation mode — using simulated payment URL');
+        paymentUrl = `${frontendUrl}/payment/simulate?reference=${reference}`;
+      } else {
+        const paystackPayload = {
           email: initializeLevyPaymentDto.email,
-          name: {
-            first: firstName,
-            last: lastName,
+          amount, // already in kobo
+          reference,
+          currency: 'NGN',
+          callback_url: callbackUrl,
+          metadata: {
+            proprietorId: proprietorId?.toString() || 'none',
+            chapter: initializeLevyPaymentDto.chapter,
+            schoolName: initializeLevyPaymentDto.schoolName,
+            wards: initializeLevyPaymentDto.wards.join(', '),
+            custom_fields: [
+              { display_name: 'Member Name', variable_name: 'member_name', value: initializeLevyPaymentDto.memberName },
+              { display_name: 'Chapter', variable_name: 'chapter', value: initializeLevyPaymentDto.chapter },
+            ],
           },
-          phone: {
-            country_code: '234',
-            number: normalizedPhone,
-          },
-        },
-        payment_method: {
-          type: initializeLevyPaymentDto.paymentMethodType || 'opay',
-        },
-        redirect_url: callbackUrl,
-        meta: {
-          proprietorId: proprietorId?.toString() || 'none',
-          chapter: initializeLevyPaymentDto.chapter,
-          schoolName: initializeLevyPaymentDto.schoolName,
-          wards: initializeLevyPaymentDto.wards.join(', '),
-        },
-      });
+        };
 
-      const paymentUrl = directChargeResponse.data.next_action?.redirect_url?.url;
-      if (!paymentUrl) {
-        throw new BadRequestException(
-          `V4 payment initialization returned unsupported next_action: ${directChargeResponse.data.next_action?.type || 'unknown'}`,
-        );
+        const response = await this.paystackClient.post('/transaction/initialize', paystackPayload);
+
+        if (!response.data?.status) {
+          throw new BadRequestException(response.data?.message || 'Paystack initialization failed');
+        }
+
+        paymentUrl = response.data.data.authorization_url;
+        paystackRef = response.data.data.reference;
       }
 
-      const updatePayload: any = {
+      await levyPayment.updateOne({
         paymentUrl,
         status: 'processing',
-      };
+        ...(paystackRef ? { flutterwaveTransactionId: paystackRef } : {}),
+      });
 
-      updatePayload.flutterwaveTransactionId = directChargeResponse.data.id;
-
-      await levyPayment.updateOne(updatePayload);
-
-      this.logger.log(`Levy payment initialized successfully: ${reference}`);
+      this.logger.log(`Levy payment initialized successfully via Paystack: ${reference}`);
 
       return {
         reference,
@@ -296,41 +296,36 @@ export class LevyPaymentsService {
         return payment;
       }
 
-      // Route to V4 or legacy V3 based on stored charge ID
-      const chargeId = payment.flutterwaveTransactionId;
-      const isV4Charge = !!chargeId && chargeId.startsWith('chg_');
-
-      let transactionData: any;
       const updateData: any = {};
 
-      if (isV4Charge) {
-        // V4 path: verify by Flutterwave charge ID
-        const chargeResponse = await this.flutterwaveService.verifyCharge(chargeId!);
-        transactionData = chargeResponse.data;
-        updateData.flutterwaveTransactionId = transactionData.id;
-        updateData.flutterwavePaymentId = transactionData.payment_method_details?.id || '';
-        updateData.gatewayResponse = transactionData.processor_response?.type || '';
-        updateData.paymentMethod = transactionData.payment_method_details?.type || 'other';
-      } else {
-        // Legacy V3 path: verify by tx_ref (may fail for payments made with old key)
-        this.logger.warn(`No V4 chargeId for payment ${verifyLevyPaymentDto.reference} — trying legacy V3 verify`);
-        const verificationResponse = await this.flutterwaveService.verifyPayment(
-          verifyLevyPaymentDto.reference,
-        );
-        transactionData = verificationResponse.data;
-        updateData.flutterwaveTransactionId = transactionData.id?.toString();
-        updateData.flutterwavePaymentId = transactionData.flw_ref;
-        updateData.gatewayResponse = transactionData.processor_response;
-        updateData.paymentMethod = transactionData.payment_type;
+      // Verify via Paystack
+      const verifyResponse = await this.paystackClient.get(
+        `/transaction/verify/${encodeURIComponent(verifyLevyPaymentDto.reference)}`,
+      );
+
+      if (!verifyResponse.data?.status) {
+        throw new BadRequestException(verifyResponse.data?.message || 'Paystack verification failed');
       }
 
-      // V3 returns 'successful', V4 returns 'succeeded'
-      const isSuccessful = transactionData.status === 'successful' || transactionData.status === 'succeeded';
+      const transactionData = verifyResponse.data.data;
+      updateData.flutterwaveTransactionId = String(transactionData.id);
+      updateData.flutterwavePaymentId = transactionData.reference;
+      updateData.gatewayResponse = transactionData.gateway_response;
+
+      // Map Paystack channel to schema enum
+      const channelMap: Record<string, string> = {
+        card: 'card',
+        bank: 'bank_transfer',
+        ussd: 'ussd',
+        mobile_money: 'mobile_money',
+      };
+      updateData.paymentMethod = channelMap[transactionData.channel] || 'other';
+
+      const isSuccessful = transactionData.status === 'success';
 
       if (isSuccessful) {
         updateData.status = 'success';
-        // V4 uses created_datetime, V3 uses created_at
-        updateData.paidAt = new Date(transactionData.created_datetime || transactionData.created_at);
+        updateData.paidAt = new Date(transactionData.paid_at || transactionData.created_at);
         
         // Try to link to proprietor if not already linked
         if (!payment.proprietorId) {
@@ -383,15 +378,11 @@ export class LevyPaymentsService {
             this.logger.error(`Failed to update proprietor payment status: ${proprietorUpdateError?.message}`);
           }
         }
-      } else if (transactionData.status === 'failed') {
+      } else if (transactionData.status === 'failed' || transactionData.status === 'abandoned') {
         updateData.status = 'failed';
-        // V4 processor_response is an object; V3 is a string
-        const procResponse = transactionData.processor_response;
-        updateData.failureReason = typeof procResponse === 'string'
-          ? procResponse
-          : procResponse?.type || procResponse?.code || 'Payment failed';
+        updateData.failureReason = transactionData.gateway_response || 'Payment failed';
       } else {
-        this.logger.warn(`Unexpected Flutterwave transaction status: ${transactionData.status}`);
+        this.logger.warn(`Unexpected Paystack transaction status: ${transactionData.status}`);
       }
 
       await payment.updateOne(updateData);
@@ -619,7 +610,7 @@ export class LevyPaymentsService {
   private generatePaymentReference(): string {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1000000);
-    return `LEVY${timestamp}${random}`;
+    return `LEVY_${timestamp}_${random}`;
   }
 
   /**
