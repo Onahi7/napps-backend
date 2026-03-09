@@ -7,7 +7,7 @@ import { PostgresSchoolsService } from './postgres-schools.service';
 import { LevyPayment, LevyPaymentSchema } from '../schemas/levy-payment.schema';
 import { Proprietor, ProprietorSchema } from '../schemas/proprietor.schema';
 import { School, SchoolSchema } from '../schemas/school.schema';
-import { FlutterwaveService } from '../common/services/flutterwave.service';
+
 import { EmailService } from '../common/services/email.service';
 
 @Module({
@@ -21,9 +21,8 @@ import { EmailService } from '../common/services/email.service';
   ],
   controllers: [LevyPaymentsController],
   providers: [
-    LevyPaymentsService, 
-    PostgresSchoolsService, 
-    FlutterwaveService, 
+    LevyPaymentsService,
+    PostgresSchoolsService,
     EmailService,
   ],
   exports: [LevyPaymentsService, PostgresSchoolsService],
