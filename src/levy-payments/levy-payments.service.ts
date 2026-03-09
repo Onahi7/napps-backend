@@ -17,7 +17,7 @@ import {
 @Injectable()
 export class LevyPaymentsService {
   private readonly logger = new Logger(LevyPaymentsService.name);
-  private readonly LEVY_AMOUNT_NAIRA = 5500;
+  private readonly LEVY_AMOUNT_NAIRA = 5600;
   private readonly LEVY_AMOUNT_KOBO = this.LEVY_AMOUNT_NAIRA * 100;
   private readonly paystackClient: AxiosInstance;
   private readonly paystackSecretKey: string;
@@ -30,7 +30,7 @@ export class LevyPaymentsService {
     @InjectModel(Proprietor.name) private proprietorModel: Model<ProprietorDocument>,
     @InjectModel(School.name) private schoolModel: Model<SchoolDocument>,
   ) {
-    this.paystackSecretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY') || '';
+    this.paystackSecretKey = this.configService.get<string>('LEVY_PAYSTACK_SECRET_KEY') || '';
     this.isSimulationMode = !this.paystackSecretKey || this.paystackSecretKey === 'simulation';
 
     this.paystackClient = axios.create({
