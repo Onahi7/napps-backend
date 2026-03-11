@@ -23,6 +23,15 @@ export class Proprietor {
   @Prop({ required: true })
   phone: string;
 
+  @Prop()
+  lga?: string;
+
+  @Prop()
+  passportPhoto?: string;
+
+  @Prop({ type: Number })
+  timesParticipated?: number;
+
   @Prop({ unique: true, sparse: true })
   registrationNumber?: string;
 
@@ -78,8 +87,8 @@ export class Proprietor {
   submissionDate: Date;
 
   @Prop({ 
-    enum: ['draft', 'submitted', 'processed', 'archived'],
-    default: 'submitted' 
+    enum: ['draft', 'step1', 'step2', 'step3', 'submitted', 'processed', 'archived'],
+    default: 'draft' 
   })
   submissionStatus: string;
 

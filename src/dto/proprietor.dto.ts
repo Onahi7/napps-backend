@@ -1,5 +1,6 @@
-import { IsString, IsEmail, IsOptional, IsEnum, IsArray, IsNumber } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsEnum, IsArray, IsNumber, IsObject, IsBoolean, ValidateNested } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class CreateProprietorDto {
   @ApiProperty()
@@ -113,6 +114,35 @@ export class SaveStep1Dto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  lga?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  passportPhoto?: string;
+
+  @ApiPropertyOptional({ enum: ['Not Registered', 'Registered', 'Registered with Certificate'] })
+  @IsOptional()
+  @IsEnum(['Not Registered', 'Registered', 'Registered with Certificate'])
+  nappsRegistered?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  participationHistory?: any;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  timesParticipated?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  pupilsPresentedLastExam?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   awards?: string;
 
   @ApiPropertyOptional()
@@ -127,22 +157,221 @@ export class SaveStep1Dto {
   chapters?: string[];
 }
 
+// Enrollment data DTO
+export class EnrollmentDto {
+  @IsOptional() @IsNumber() kg1Male?: number;
+  @IsOptional() @IsNumber() kg1Female?: number;
+  @IsOptional() @IsNumber() kg2Male?: number;
+  @IsOptional() @IsNumber() kg2Female?: number;
+  @IsOptional() @IsNumber() eccdMale?: number;
+  @IsOptional() @IsNumber() eccdFemale?: number;
+  @IsOptional() @IsNumber() nursery1Male?: number;
+  @IsOptional() @IsNumber() nursery1Female?: number;
+  @IsOptional() @IsNumber() nursery2Male?: number;
+  @IsOptional() @IsNumber() nursery2Female?: number;
+  @IsOptional() @IsNumber() primary1Male?: number;
+  @IsOptional() @IsNumber() primary1Female?: number;
+  @IsOptional() @IsNumber() primary2Male?: number;
+  @IsOptional() @IsNumber() primary2Female?: number;
+  @IsOptional() @IsNumber() primary3Male?: number;
+  @IsOptional() @IsNumber() primary3Female?: number;
+  @IsOptional() @IsNumber() primary4Male?: number;
+  @IsOptional() @IsNumber() primary4Female?: number;
+  @IsOptional() @IsNumber() primary5Male?: number;
+  @IsOptional() @IsNumber() primary5Female?: number;
+  @IsOptional() @IsNumber() primary6Male?: number;
+  @IsOptional() @IsNumber() primary6Female?: number;
+  @IsOptional() @IsNumber() jss1Male?: number;
+  @IsOptional() @IsNumber() jss1Female?: number;
+  @IsOptional() @IsNumber() jss2Male?: number;
+  @IsOptional() @IsNumber() jss2Female?: number;
+  @IsOptional() @IsNumber() jss3Male?: number;
+  @IsOptional() @IsNumber() jss3Female?: number;
+  @IsOptional() @IsNumber() ss1Male?: number;
+  @IsOptional() @IsNumber() ss1Female?: number;
+  @IsOptional() @IsNumber() ss2Male?: number;
+  @IsOptional() @IsNumber() ss2Female?: number;
+  @IsOptional() @IsNumber() ss3Male?: number;
+  @IsOptional() @IsNumber() ss3Female?: number;
+}
+
 // Step 2: School Information
 export class SaveStep2Dto {
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty()
   @IsString()
-  submissionId?: string;
+  submissionId: string;
 
   @ApiProperty()
   @IsString()
-  schoolId: string;
+  schoolName: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  schoolName2?: string;
+
+  @ApiProperty()
+  @IsString()
+  address: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  addressLine2?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  lga?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  chapter?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  aeqeoZone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  gpsLongitude?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  gpsLatitude?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  typeOfSchool?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  categoryOfSchool?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ownership?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  yearOfEstablishment?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  yearOfApproval?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  registrationEvidence?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  registrationEvidencePhoto?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EnrollmentDto)
+  @IsObject()
+  enrollment?: EnrollmentDto;
 }
 
 export class Step2SchoolInfoDto {
   @ApiProperty()
   @IsString()
-  schoolId: string;
+  schoolName: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  schoolName2?: string;
+
+  @ApiProperty()
+  @IsString()
+  address: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  addressLine2?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  lga?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  chapter?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  aeqeoZone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  gpsLongitude?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  gpsLatitude?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  typeOfSchool?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  categoryOfSchool?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ownership?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  yearOfEstablishment?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  yearOfApproval?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  registrationEvidence?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  registrationEvidencePhoto?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EnrollmentDto)
+  @IsObject()
+  enrollment?: EnrollmentDto;
 
   @ApiPropertyOptional()
   @IsOptional()
