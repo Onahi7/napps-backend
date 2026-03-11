@@ -50,6 +50,15 @@ export class School {
   @Prop({ type: Number, precision: 7 })
   gpsLatitude?: number;
 
+  @Prop()
+  registrationEvidence?: string;
+
+  @Prop()
+  registrationEvidencePhoto?: string;
+
+  @Prop({ type: Object })
+  enrollment?: Record<string, number>;
+
   @Prop({ default: true })
   isPrimary: boolean; // Primary school for this proprietor
 
