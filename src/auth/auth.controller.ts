@@ -32,6 +32,19 @@ export class AuthController {
     return this.authService.adminLogin(adminLoginDto);
   }
 
+  @Post('admin/setup')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Setup initial admin (temporary - remove after use)' })
+  async setupAdmin(@Body() body: { email: string; password: string; firstName: string; lastName: string; role?: string }) {
+    return this.authService.createAdmin(
+      body.email,
+      body.password,
+      body.firstName,
+      body.lastName,
+      (body.role || 'super_admin') as 'admin' | 'super_admin',
+    );
+  }
+
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
