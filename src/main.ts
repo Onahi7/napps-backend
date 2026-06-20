@@ -16,10 +16,11 @@ async function bootstrap() {
         'https://portal.nappsnasarawa.com',
         'https://connect.nappsnasarawa.com',
         'https://api.nappsnasarawa.com',
+        'https://napps-backend-5ty7.onrender.com',
         'https://lovable.dev',
-        /\.lovable\.dev$/, // Allow all Lovable preview URLs
-        /\.vercel\.app$/, // Allow Vercel preview URLs
-        /\.netlify\.app$/, // Allow Netlify preview URLs
+        /\.lovable\.dev$/,
+        /\.vercel\.app$/,
+        /\.netlify\.app$/,
       ],
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

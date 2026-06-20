@@ -5,7 +5,7 @@
 
 const axios = require('axios');
 
-const API_BASE = process.env.API_BASE_URL || 'https://api.nappsnasarawa.com/api/v1';
+const API_BASE = process.env.API_BASE_URL || 'https://napps-backend-5ty7.onrender.com/api/v1';
 
 async function main() {
   const ts = Date.now();
