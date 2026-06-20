@@ -24,7 +24,7 @@ import {
   CsvImportResultDto
 } from './dto/proprietor.dto';
 import { UpdateChaptersDto, BulkUpdateChaptersDto } from './dto/chapters.dto';
-import { DEFAULT_CHAPTERS } from '../common/constants/napps-chapters';
+import { DEFAULT_CHAPTERS, LGA_CHAPTER_MAP } from '../common/constants/napps-chapters';
 import type { NappsChapter } from '../common/constants/napps-chapters';
 
 @Injectable()
@@ -98,12 +98,36 @@ export class ProprietorsService {
     try {
       // Create or update school
       let school: SchoolDocument | null;
+
+      // Intelligently resolve chapter and LGA for the school
+      const schoolLga = data.lga || proprietor.lga;
+      const schoolChapter = data.chapter
+        || (proprietor.chapters && proprietor.chapters[0])
+        || (schoolLga ? LGA_CHAPTER_MAP[schoolLga] : undefined);
       
       if (proprietor.school) {
-        // Update existing school
+        // Update existing school (only override if incoming data provides values)
+        const updateData: Record<string, any> = {};
+        if (data.schoolName) updateData.schoolName = data.schoolName;
+        if (data.schoolName2 !== undefined) updateData.schoolName2 = data.schoolName2;
+        if (data.address) updateData.address = data.address;
+        if (data.addressLine2 !== undefined) updateData.addressLine2 = data.addressLine2;
+        if (data.lga) updateData.lga = data.lga;
+        else if (proprietor.lga) updateData.lga = proprietor.lga;
+        if (data.chapter) updateData.chapter = data.chapter;
+        else if (schoolChapter) updateData.chapter = schoolChapter;
+        if (data.aeqeoZone !== undefined) updateData.aeqeoZone = data.aeqeoZone;
+        if (data.yearOfEstablishment !== undefined) updateData.yearOfEstablishment = data.yearOfEstablishment;
+        if (data.yearOfApproval !== undefined) updateData.yearOfApproval = data.yearOfApproval;
+        if (data.typeOfSchool) updateData.typeOfSchool = data.typeOfSchool;
+        if (data.categoryOfSchool) updateData.categoryOfSchool = data.categoryOfSchool;
+        if (data.ownership) updateData.ownership = data.ownership;
+        if (data.gpsLongitude !== undefined) updateData.gpsLongitude = data.gpsLongitude;
+        if (data.gpsLatitude !== undefined) updateData.gpsLatitude = data.gpsLatitude;
+
         school = await this.schoolModel.findByIdAndUpdate(
           proprietor.school,
-          data,
+          updateData,
           { new: true, runValidators: true }
         );
         
@@ -111,10 +135,12 @@ export class ProprietorsService {
           throw new NotFoundException('School not found');
         }
       } else {
-        // Create new school
+        // Create new school with proprietor data as fallback
         school = new this.schoolModel({
           ...data,
           proprietorId: proprietor._id,
+          lga: schoolLga,
+          chapter: schoolChapter,
         });
         await school.save();
 
@@ -451,6 +477,7 @@ export class ProprietorsService {
         .sort(sort)
         .skip(skip)
         .limit(limit)
+        .populate('school')
         .exec(),
       this.proprietorModel.countDocuments(filter),
     ]);
@@ -467,7 +494,7 @@ export class ProprietorsService {
   }
 
   async findOne(id: string): Promise<ProprietorDocument> {
-    const proprietor = await this.proprietorModel.findById(id);
+    const proprietor = await this.proprietorModel.findById(id).populate('school');
     if (!proprietor) {
       throw new NotFoundException(`Proprietor with ID ${id} not found`);
     }
@@ -1039,25 +1066,20 @@ export class ProprietorsService {
       amountStats,
       chapterStats
     ] = await Promise.all([
-      this.proprietorModel.countDocuments({ isActive: true }),
+      this.proprietorModel.countDocuments(),
       this.proprietorModel.aggregate([
-        { $match: { isActive: true } },
         { $group: { _id: '$registrationStatus', count: { $sum: 1 } } }
       ]),
       this.proprietorModel.aggregate([
-        { $match: { isActive: true } },
         { $group: { _id: '$nappsRegistered', count: { $sum: 1 } } }
       ]),
       this.proprietorModel.aggregate([
-        { $match: { isActive: true } },
         { $group: { _id: '$clearingStatus', count: { $sum: 1 } } }
       ]),
       this.proprietorModel.aggregate([
-        { $match: { isActive: true } },
         { $group: { _id: null, total: { $sum: '$totalAmountDue' } } }
       ]),
       this.proprietorModel.aggregate([
-        { $match: { isActive: true } },
         { $unwind: { path: '$chapters', preserveNullAndEmptyArrays: true } },
         { 
           $group: { 
