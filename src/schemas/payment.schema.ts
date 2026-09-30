@@ -27,16 +27,34 @@ export class Payment {
   status: string;
 
   @Prop({ 
-    enum: ['paystack', 'bank_transfer', 'cash', 'online'],
+    enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'],
     default: 'paystack' 
   })
   paymentMethod: string;
+
+  @Prop({ enum: ['paystack', 'fidelity', 'virtuda', 'bank_transfer'], default: 'fidelity' })
+  gateway?: string;
 
   @Prop({ unique: true, sparse: true })
   paystackReference?: string;
 
   @Prop({ unique: true, sparse: true })
   reference?: string;
+
+  @Prop({ sparse: true })
+  accountGenerationId?: string;
+
+  @Prop()
+  accountNumber?: string;
+
+  @Prop()
+  accountName?: string;
+
+  @Prop({ default: 'Fidelity Bank' })
+  bankName?: string;
+
+  @Prop({ type: Object })
+  virtualAccount?: Record<string, any>;
 
   @Prop()
   transactionId?: string;
@@ -45,7 +63,37 @@ export class Payment {
   paystackTransactionId?: string;
 
   @Prop()
+  gatewayTransactionId?: string;
+
+  @Prop()
   bankReference?: string;
+
+  @Prop()
+  settledAmount?: number;
+
+  @Prop()
+  feeAmount?: number;
+
+  @Prop()
+  vatAmount?: number;
+
+  @Prop()
+  senderAccountNumber?: string;
+
+  @Prop()
+  senderAccountName?: string;
+
+  @Prop()
+  senderBankName?: string;
+
+  @Prop()
+  narration?: string;
+
+  @Prop()
+  sessionId?: string;
+
+  @Prop()
+  expiryTime?: Date;
 
   @Prop()
   paymentDate?: Date;
@@ -61,6 +109,12 @@ export class Payment {
 
   @Prop()
   email?: string;
+
+  @Prop({ default: false })
+  webhookReceived?: boolean;
+
+  @Prop({ type: Object })
+  webhookData?: Record<string, any>;
 
   @Prop({ type: Object, default: {} })
   metadata: Record<string, any>;
@@ -92,5 +146,8 @@ PaymentSchema.index({ proprietorId: 1 });
 PaymentSchema.index({ schoolId: 1 });
 PaymentSchema.index({ paystackReference: 1 }, { sparse: true });
 PaymentSchema.index({ reference: 1 }, { sparse: true });
+PaymentSchema.index({ accountGenerationId: 1 }, { sparse: true });
+PaymentSchema.index({ accountNumber: 1 }, { sparse: true });
 PaymentSchema.index({ status: 1 });
 PaymentSchema.index({ paymentDate: -1 });
+PaymentSchema.index({ createdAt: -1 });

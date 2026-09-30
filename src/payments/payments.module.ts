@@ -11,6 +11,8 @@ import { School, SchoolSchema } from '../schemas/school.schema';
 import { FeeConfiguration, FeeConfigurationSchema } from '../schemas/fee-configuration.schema';
 import { EmailService } from '../common/services/email.service';
 
+import { FidelityService } from './fidelity.service';
+
 @Module({
   imports: [
     ConfigModule,
@@ -22,7 +24,7 @@ import { EmailService } from '../common/services/email.service';
     ]),
   ],
   controllers: [PaymentsController, FeeConfigurationController],
-  providers: [PaymentsService, FeeConfigurationService, EmailService],
-  exports: [PaymentsService, FeeConfigurationService],
+  providers: [PaymentsService, FeeConfigurationService, FidelityService, EmailService],
+  exports: [PaymentsService, FeeConfigurationService, FidelityService],
 })
-export class PaymentsModule {}
+export class PaymentsModule {}

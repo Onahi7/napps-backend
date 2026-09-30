@@ -68,6 +68,24 @@ export class Proprietor {
   @Prop()
   positionHeld?: string;
 
+  @Prop()
+  positionInNapps?: string;
+
+  @Prop()
+  schoolCode?: string;
+
+  @Prop({ default: false })
+  hasNappsIdCard?: boolean;
+
+  @Prop({ enum: ['Never', '1', '2', '3', '3+'], default: 'Never' })
+  nnsuceTimesWritten?: string;
+
+  @Prop({ type: Number, default: 0 })
+  nnsuce2025PupilsCount?: number;
+
+  @Prop({ type: Array, default: [] })
+  duesPaymentHistory?: any[];
+
   @Prop({ 
     enum: ['pending', 'cleared', 'outstanding'], 
     default: 'pending' 

@@ -12,6 +12,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { SchoolsModule } from './schools/schools.module';
 import { FeesModule } from './fees/fees.module';
 import { ConnectHubModule } from './connect-hub/connect-hub.module';
+import { NnsuceModule } from './nnsuce/nnsuce.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { ConnectHubModule } from './connect-hub/connect-hub.module';
     SchoolsModule,
     FeesModule,
     ConnectHubModule,
+    NnsuceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

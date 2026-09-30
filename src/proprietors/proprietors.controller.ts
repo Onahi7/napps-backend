@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Patch,
   Param,
@@ -168,6 +169,7 @@ export class ProprietorsController {
   @ApiQuery({ name: 'schoolName', required: false, type: String })
   @ApiQuery({ name: 'registrationNumber', required: false, type: String })
   @ApiQuery({ name: 'nappsMembershipId', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Proprietors found matching the lookup criteria',
@@ -258,44 +260,53 @@ export class ProprietorsController {
     );
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a proprietor by ID' })
-  @ApiParam({ name: 'id', description: 'Proprietor ID' })
+  @Get('chapters/available')
+  @ApiOperation({ summary: 'Get list of available NAPPS chapters' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Proprietor found successfully',
+    description: 'Available chapters retrieved successfully',
   })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Proprietor not found',
-  })
-  async findOne(@Param('id') id: string) {
-    return await this.proprietorsService.findOne(id);
+  async getAvailableChapters() {
+    return await this.proprietorsService.getAvailableChapters();
   }
 
-  @Patch(':id')
+  @Post('chapters/bulk-update')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update a proprietor (Admin only)' })
-  @ApiParam({ name: 'id', description: 'Proprietor ID' })
+  @ApiOperation({ summary: 'Bulk update chapters for multiple proprietors (Admin only)' })
+  @ApiBody({ type: BulkUpdateChaptersDto })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Proprietor updated successfully',
+    description: 'Bulk chapter update completed',
   })
   @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Proprietor not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.CONFLICT,
-    description: 'Email or phone already exists',
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid request data',
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
     description: 'Authentication required',
   })
-  async update(@Param('id') id: string, @Body() updateProprietorDto: UpdateProprietorDto) {
-    return await this.proprietorsService.update(id, updateProprietorDto);
+  async bulkUpdateChapters(@Body() bulkDto: BulkUpdateChaptersDto) {
+    return await this.proprietorsService.bulkUpdateChapters(bulkDto);
+  }
+
+  @Post('ai-extract-document')
+  @ApiOperation({ summary: 'AI-assisted membership and school data capture from uploaded document' })
+  async aiExtractDocument(@Body() body: { imageBase64?: string; textSnippet?: string; documentType?: string }) {
+    return await this.proprietorsService.aiExtractDocument(body);
+  }
+
+  @Get('verify-member/:identifier')
+  @ApiOperation({ summary: 'Public verification of member credentials and dues clearance status' })
+  async verifyMember(@Param('identifier') identifier: string) {
+    return await this.proprietorsService.verifyMember(identifier);
+  }
+
+  @Get('monitoring/financial-remittances')
+  @ApiOperation({ summary: 'Real-time multi-level monitoring and financial remittances ledger' })
+  async getFinancialRemittances() {
+    return await this.proprietorsService.getFinancialRemittances();
   }
 
   @Patch(':id/enrollment')
@@ -374,35 +385,68 @@ export class ProprietorsController {
     return await this.proprietorsService.updateChapters(id, chaptersDto);
   }
 
-  @Post('chapters/bulk-update')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Bulk update chapters for multiple proprietors (Admin only)' })
-  @ApiBody({ type: BulkUpdateChaptersDto })
+  @Get(':id/id-card')
+  @ApiOperation({ summary: 'Generate official digital NAPPS Membership Identification Card with QR code' })
+  async getMembershipIdCard(@Param('id') id: string) {
+    return await this.proprietorsService.getMembershipIdCard(id);
+  }
+
+  @Get(':id/receipt')
+  @ApiOperation({ summary: 'Generate official electronic receipt with 4-tier dues distribution' })
+  async getOfficialReceipt(@Param('id') id: string) {
+    return await this.proprietorsService.getOfficialReceipt(id);
+  }
+
+  @Get(':id/validation-form')
+  @ApiOperation({ summary: 'Get official NAPPS Membership Validation Form data (NNSUCE history, dues table, school profile)' })
+  async getValidationFormData(@Param('id') id: string) {
+    return await this.proprietorsService.getValidationFormData(id);
+  }
+
+  @Put(':id/validation-form')
+  @ApiOperation({ summary: 'Update NAPPS Membership Validation Form data' })
+  async updateValidationFormData(@Param('id') id: string, @Body() body: any) {
+    return await this.proprietorsService.updateValidationFormData(id, body);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a proprietor by ID' })
+  @ApiParam({ name: 'id', description: 'Proprietor ID' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Bulk chapter update completed',
+    description: 'Proprietor found successfully',
   })
   @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid request data',
+    status: HttpStatus.NOT_FOUND,
+    description: 'Proprietor not found',
+  })
+  async findOne(@Param('id') id: string) {
+    return await this.proprietorsService.findOne(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a proprietor (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Proprietor ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Proprietor updated successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Proprietor not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'Email or phone already exists',
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
     description: 'Authentication required',
   })
-  async bulkUpdateChapters(@Body() bulkDto: BulkUpdateChaptersDto) {
-    return await this.proprietorsService.bulkUpdateChapters(bulkDto);
-  }
-
-  @Get('chapters/available')
-  @ApiOperation({ summary: 'Get list of available NAPPS chapters' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Available chapters retrieved successfully',
-  })
-  async getAvailableChapters() {
-    return await this.proprietorsService.getAvailableChapters();
+  async update(@Param('id') id: string, @Body() updateProprietorDto: UpdateProprietorDto) {
+    return await this.proprietorsService.update(id, updateProprietorDto);
   }
 
   @Delete(':id')
