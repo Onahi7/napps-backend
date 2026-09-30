@@ -196,6 +196,16 @@ export class ProprietorLookupDto {
   @IsString()
   @IsOptional()
   lastName?: string;
+
+  @ApiPropertyOptional({ description: 'Unified search across all fields (name, phone, email, school, reg no)' })
+  @IsString()
+  @IsOptional()
+  search?: string;
+
+  @ApiPropertyOptional({ description: 'Unified search alias' })
+  @IsString()
+  @IsOptional()
+  q?: string;
 }
 
 export class ProprietorQueryDto {

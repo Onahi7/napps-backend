@@ -38,6 +38,11 @@ import {
   UpdatePaymentDto,
   PaymentStatsDto,
 } from './dto/payment.dto';
+import {
+  InitializeFidelityPaymentDto,
+  InitiateFidelityLookupPaymentDto,
+  FidelityPaymentResponseDto,
+} from './dto/fidelity-payment.dto';
 import { PaymentDocument } from '../schemas/payment.schema';
 
 @ApiTags('Payments')
@@ -55,6 +60,43 @@ export class PaymentsController {
   async initializePayment(@Body() initializePaymentDto: InitializePaymentDto): Promise<PaymentResponseDto> {
     return await this.paymentsService.initializePayment(initializePaymentDto);
   }
+
+  // =============== FIDELITY BANK (VIRTUDA) ENDPOINTS ===============
+
+  @Post('fidelity/initialize')
+  @ApiOperation({ summary: 'Initialize Fidelity dynamic virtual account payment' })
+  @ApiResponse({ status: 201, description: 'Fidelity virtual account generated', type: FidelityPaymentResponseDto })
+  async initializeFidelityPayment(@Body() dto: InitializeFidelityPaymentDto): Promise<FidelityPaymentResponseDto> {
+    return await this.paymentsService.initializeFidelityPayment(dto);
+  }
+
+  @Post('fidelity/initiate-lookup')
+  @ApiOperation({ summary: 'Generate Fidelity virtual account from proprietor lookup' })
+  @ApiResponse({ status: 201, description: 'Fidelity virtual account generated from lookup' })
+  async initiateFidelityLookup(@Body() dto: InitiateFidelityLookupPaymentDto) {
+    return await this.paymentsService.initiateFidelityLookupPayment(dto.submissionId, dto.email, dto.amount);
+  }
+
+  @Post('fidelity/webhook')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Handle incoming Fidelity Bank (Virtuda) payment webhooks' })
+  async handleFidelityWebhook(
+    @Body() payload: Record<string, any>,
+    @Headers('client-secret') clientSecret?: string,
+    @Headers('x-fidelity-signature') signature?: string,
+  ) {
+    this.logger.log(`📥 Fidelity webhook received on /payments/fidelity/webhook`);
+    const sig = signature || clientSecret;
+    return await this.paymentsService.handleFidelityWebhook(payload, sig);
+  }
+
+  @Get('fidelity/status/:reference')
+  @ApiOperation({ summary: 'Check status of dynamic Fidelity virtual account payment' })
+  async getFidelityStatus(@Param('reference') reference: string) {
+    return await this.paymentsService.getFidelityPaymentStatus(reference);
+  }
+
+  // =================================================================
 
   @Post('verify')
   @UseGuards(JwtAuthGuard)
@@ -79,10 +121,10 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Initiate payment for proprietor from lookup' })
   @ApiResponse({ status: 201, description: 'Payment initiated successfully' })
   async initiateLookupPayment(
-    @Body() body: { submissionId: string; email: string }
-  ): Promise<{ simulationMode?: boolean; paymentUrl?: string; payment?: any }> {
-    this.logger.log(`💳 Initiating lookup payment for: ${body.email}`);
-    return await this.paymentsService.initiateLookupPayment(body.submissionId, body.email);
+    @Body() body: { submissionId: string; email: string; gateway?: string }
+  ): Promise<{ simulationMode?: boolean; paymentUrl?: string; payment?: any; gateway?: string; virtualAccount?: any }> {
+    this.logger.log(`💳 Initiating lookup payment for: ${body.email} (gateway: ${body.gateway || 'default'})`);
+    return await this.paymentsService.initiateLookupPayment(body.submissionId, body.email, body.gateway);
   }
 
   @Post('webhook')
@@ -100,6 +142,7 @@ export class PaymentsController {
     await this.paymentsService.handleWebhook(webhookDto, signature);
     return { message: 'Webhook processed successfully' };
   }
+
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -146,51 +189,16 @@ export class PaymentsController {
     return await this.paymentsService.getPaymentStats(startDate, endDate);
   }
 
-  @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get payment by ID' })
-  @ApiResponse({ status: 200, description: 'Payment retrieved successfully' })
-  async findPaymentById(@Param('id') id: string): Promise<PaymentDocument> {
-    return await this.paymentsService.findPaymentById(id);
-  }
-
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update payment details' })
-  @ApiBody({ type: UpdatePaymentDto })
-  @ApiResponse({ status: 200, description: 'Payment updated successfully' })
-  async updatePayment(
-    @Param('id') id: string,
-    @Body() updatePaymentDto: UpdatePaymentDto,
-  ): Promise<PaymentDocument> {
-    return await this.paymentsService.updatePayment(id, updatePaymentDto);
-  }
-
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete a payment record' })
-  @ApiResponse({ status: 200, description: 'Payment deleted successfully' })
-  async deletePayment(@Param('id') id: string): Promise<{ message: string }> {
-    return await this.paymentsService.deletePayment(id);
-  }
-
-  @Post(':id/refund')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Refund a payment' })
-  @ApiBody({ type: RefundPaymentDto })
-  @ApiResponse({ status: 200, description: 'Payment refunded successfully' })
-  async refundPayment(
-    @Param('id') id: string,
-    @Body() refundPaymentDto: RefundPaymentDto,
-  ): Promise<PaymentDocument> {
-    return await this.paymentsService.refundPayment(id, refundPaymentDto);
+  @Get('health/status')
+  @ApiOperation({ summary: 'Check payment service health' })
+  @ApiResponse({ status: 200, description: 'Service is healthy' })
+  async healthCheck() {
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      service: 'payments',
+    };
   }
 
   @Get('verify/:reference')
@@ -259,15 +267,50 @@ export class PaymentsController {
     return await this.paymentsService.initializePayment(initializeDto);
   }
 
-  @Get('health/status')
-  @ApiOperation({ summary: 'Check payment service health' })
-  @ApiResponse({ status: 200, description: 'Service is healthy' })
-  async healthCheck() {
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      service: 'payments',
-    };
+  @Post(':id/refund')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Refund a payment' })
+  @ApiBody({ type: RefundPaymentDto })
+  @ApiResponse({ status: 200, description: 'Payment refunded successfully' })
+  async refundPayment(
+    @Param('id') id: string,
+    @Body() refundPaymentDto: RefundPaymentDto,
+  ): Promise<PaymentDocument> {
+    return await this.paymentsService.refundPayment(id, refundPaymentDto);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update payment details' })
+  @ApiBody({ type: UpdatePaymentDto })
+  @ApiResponse({ status: 200, description: 'Payment updated successfully' })
+  async updatePayment(
+    @Param('id') id: string,
+    @Body() updatePaymentDto: UpdatePaymentDto,
+  ): Promise<PaymentDocument> {
+    return await this.paymentsService.updatePayment(id, updatePaymentDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a payment record' })
+  @ApiResponse({ status: 200, description: 'Payment deleted successfully' })
+  async deletePayment(@Param('id') id: string): Promise<{ message: string }> {
+    return await this.paymentsService.deletePayment(id);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get payment by ID' })
+  @ApiResponse({ status: 200, description: 'Payment retrieved successfully' })
+  async findPaymentById(@Param('id') id: string): Promise<PaymentDocument> {
+    return await this.paymentsService.findPaymentById(id);
   }
 }

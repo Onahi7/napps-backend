@@ -8,16 +8,19 @@ import { Proprietor, ProprietorSchema } from '../schemas/proprietor.schema';
 import { School, SchoolSchema } from '../schemas/school.schema';
 import { Payment, PaymentSchema } from '../schemas/payment.schema';
 import { FeeConfiguration, FeeConfigurationSchema } from '../schemas/fee-configuration.schema';
+import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
   imports: [
     ConfigModule,
+    PaymentsModule,
     MongooseModule.forFeature([
       { name: Proprietor.name, schema: ProprietorSchema },
       { name: School.name, schema: SchoolSchema },
       { name: Payment.name, schema: PaymentSchema },
       { name: FeeConfiguration.name, schema: FeeConfigurationSchema },
     ]),
+
     MulterModule.register({
       limits: {
         fileSize: 10 * 1024 * 1024, // 10MB limit for CSV files

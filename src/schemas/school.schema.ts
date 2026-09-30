@@ -27,6 +27,24 @@ export class School {
   chapter?: string; // NAPPS chapter the school belongs to
 
   @Prop()
+  aegeLgeaDa?: string; // AEGE / LGEA / DA area
+
+  @Prop({ 
+    enum: ['REGISTERED', 'NOT REGISTERED', 'IN PROGRESS', 'Registered', 'Not Registered', 'In Progress'],
+    default: 'IN PROGRESS'
+  })
+  schoolRegistrationStatus?: string;
+
+  @Prop()
+  levelsOfEducation?: string; // Nursery/Primary, Primary, JSS Only, JSS & SSS
+
+  @Prop()
+  schoolCode?: string;
+
+  @Prop()
+  phone?: string;
+
+  @Prop()
   aeqeoZone?: string;
 
   @Prop()
@@ -36,7 +54,7 @@ export class School {
   yearOfApproval?: number;
 
   @Prop()
-  typeOfSchool?: string; // Faith Based, Secular, etc.
+  typeOfSchool?: string; // Regular, Islamiyya Integrated, Special Needs
 
   @Prop({ default: 'Private' })
   categoryOfSchool: string;

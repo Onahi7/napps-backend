@@ -9,6 +9,7 @@ import { Proprietor, ProprietorDocument } from '../schemas/proprietor.schema';
 import { School, SchoolDocument } from '../schemas/school.schema';
 import { FeeConfiguration, FeeConfigurationDocument } from '../schemas/fee-configuration.schema';
 import { EmailService } from '../common/services/email.service';
+import { FidelityService, VirtudaDynamicAccountResult } from './fidelity.service';
 import {
   InitializePaymentDto,
   PaymentResponseDto,
@@ -19,6 +20,11 @@ import {
   UpdatePaymentDto,
   PaymentStatsDto,
 } from './dto/payment.dto';
+import {
+  InitializeFidelityPaymentDto,
+  InitiateFidelityLookupPaymentDto,
+  FidelityPaymentResponseDto,
+} from './dto/fidelity-payment.dto';
 
 interface FeeStructure {
   platformFeePercentage?: number;
@@ -32,13 +38,14 @@ interface FeeStructure {
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
-  private readonly paystackClient: AxiosInstance;
+  private readonly paystackClient?: AxiosInstance;
   private readonly paystackSecretKey: string;
   private readonly paystackWebhookSecret: string;
 
   constructor(
     private configService: ConfigService,
     private emailService: EmailService,
+    private fidelityService: FidelityService,
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     @InjectModel(Proprietor.name) private proprietorModel: Model<ProprietorDocument>,
     @InjectModel(School.name) private schoolModel: Model<SchoolDocument>,
@@ -47,18 +54,19 @@ export class PaymentsService {
     this.paystackSecretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY') || '';
     this.paystackWebhookSecret = this.configService.get<string>('PAYSTACK_WEBHOOK_SECRET') || '';
 
-    if (!this.paystackSecretKey) {
-      throw new Error('PAYSTACK_SECRET_KEY is required');
+    if (this.paystackSecretKey && this.paystackSecretKey !== 'simulation') {
+      this.paystackClient = axios.create({
+        baseURL: 'https://api.paystack.co',
+        headers: {
+          Authorization: `Bearer ${this.paystackSecretKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    } else {
+      this.logger.warn('PAYSTACK_SECRET_KEY not set or in simulation mode');
     }
-
-    this.paystackClient = axios.create({
-      baseURL: 'https://api.paystack.co',
-      headers: {
-        Authorization: `Bearer ${this.paystackSecretKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
   }
+
 
   // =============== PAYMENT INITIALIZATION ===============
 
@@ -323,10 +331,30 @@ export class PaymentsService {
 
   async initiateLookupPayment(
     submissionId: string, 
-    email: string
-  ): Promise<{ simulationMode?: boolean; paymentUrl?: string; payment?: any }> {
+    email: string,
+    requestedGateway?: string,
+  ): Promise<{ 
+    simulationMode?: boolean; 
+    paymentUrl?: string; 
+    payment?: any;
+    gateway?: string;
+    reference?: string;
+    virtualAccount?: any;
+    proprietor?: any;
+    school?: any;
+  }> {
     try {
-      this.logger.log(`💳 Initiating lookup payment for submission: ${submissionId}`);
+      this.logger.log(`💳 Initiating lookup payment for submission: ${submissionId} (gateway: ${requestedGateway || 'default'})`);
+
+      const defaultGateway = this.configService.get<string>('DEFAULT_PAYMENT_GATEWAY') || 'virtuda';
+      const shouldUseFidelity =
+        requestedGateway === 'fidelity' ||
+        requestedGateway === 'virtuda' ||
+        (!requestedGateway && (defaultGateway === 'virtuda' || defaultGateway === 'fidelity'));
+
+      if (shouldUseFidelity) {
+        return await this.initiateFidelityLookupPayment(submissionId, email);
+      }
       
       // Find proprietor by submissionId (UUID string) or MongoDB _id
       let proprietor = await this.proprietorModel.findOne({
@@ -335,7 +363,6 @@ export class PaymentsService {
 
       // If not found by submissionId, try searching by MongoDB _id
       if (!proprietor && submissionId.match(/^[0-9a-fA-F]{24}$/)) {
-        // submissionId looks like a MongoDB ObjectId, try finding by _id
         proprietor = await this.proprietorModel.findById(submissionId).populate('school');
       }
 
@@ -354,7 +381,6 @@ export class PaymentsService {
         const school = await this.schoolModel.findOne({ proprietorId: proprietor._id });
         if (school) {
           schoolId = school._id as any;
-          // Update the proprietor with the school reference for future use
           try {
             await this.proprietorModel.findByIdAndUpdate(proprietor._id, { school: school._id });
           } catch (error) {
@@ -385,6 +411,8 @@ export class PaymentsService {
         schoolId: schoolId,
         amount: Math.round(totalAmount * 100), // Convert to kobo
         paymentType: 'registration_fee',
+        paymentMethod: 'paystack',
+        gateway: 'paystack',
         reference,
         status: 'pending',
         email: proprietor.email,
@@ -404,12 +432,13 @@ export class PaymentsService {
       const paystackSecretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY');
       const isSimulationMode = !paystackSecretKey || paystackSecretKey === 'simulation';
       
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:8080';
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
 
-      if (isSimulationMode) {
+      if (isSimulationMode || !this.paystackClient) {
         this.logger.log(`🎭 Simulation mode enabled for ${email}`);
         return {
           simulationMode: true,
+          gateway: 'paystack',
           paymentUrl: `${frontendUrl}/payment/simulate?reference=${reference}`,
           payment: {
             reference,
@@ -441,6 +470,7 @@ export class PaymentsService {
       if (paystackResponse && paystackResponse.data) {
         this.logger.log(`✅ Paystack payment initialized for ${email}`);
         return {
+          gateway: 'paystack',
           paymentUrl: paystackResponse.data.authorization_url,
           payment: {
             reference,
@@ -458,6 +488,392 @@ export class PaymentsService {
       throw new BadRequestException('Failed to initiate payment');
     }
   }
+
+  // =============== FIDELITY / VIRTUDA PAYMENTS ===============
+
+  async initializeFidelityPayment(
+    dto: InitializeFidelityPaymentDto,
+  ): Promise<FidelityPaymentResponseDto> {
+    try {
+      this.logger.log(`🏦 Initializing Fidelity payment for proprietor ${dto.proprietorId}`);
+
+      const proprietor = await this.proprietorModel.findById(dto.proprietorId);
+      if (!proprietor) {
+        throw new NotFoundException('Proprietor not found');
+      }
+
+      let schoolId = dto.schoolId;
+      if (!schoolId && proprietor.school) {
+        schoolId = String(proprietor.school);
+      }
+
+      const virtudaResult = await this.fidelityService.initializeDynamicVirtualAccount({
+        amount: dto.amount,
+        durationMinutes: dto.durationMinutes || 60,
+      });
+
+      const amountInKobo = Math.round(dto.amount * 100);
+
+      const payment = new this.paymentModel({
+        proprietorId: proprietor._id,
+        schoolId: schoolId ? schoolId : undefined,
+        amount: amountInKobo,
+        currency: 'NGN',
+        status: 'pending',
+        paymentMethod: 'fidelity',
+        gateway: 'fidelity',
+        reference: virtudaResult.reference,
+        accountGenerationId: virtudaResult.reference,
+        accountNumber: virtudaResult.accountNumber,
+        accountName: virtudaResult.accountName,
+        bankName: virtudaResult.bankName || 'Fidelity Bank',
+        expiryTime: virtudaResult.expiryTime ? new Date(virtudaResult.expiryTime) : undefined,
+        paymentType: dto.paymentType,
+        description:
+          dto.description ||
+          `NAPPS payment via Fidelity Bank for ${proprietor.firstName} ${proprietor.lastName}`,
+        email: dto.email,
+        virtualAccount: {
+          accountNumber: virtudaResult.accountNumber,
+          accountName: virtudaResult.accountName,
+          bankName: virtudaResult.bankName,
+          amount: virtudaResult.expectedAmount,
+          expiryTime: virtudaResult.expiryTime,
+          accountGenerationId: virtudaResult.reference,
+        },
+        metadata: {
+          ...dto.metadata,
+          submissionId: proprietor.submissionId,
+          channel: 'fidelity_virtual_account',
+        },
+      });
+
+      await payment.save();
+
+      return {
+        id: payment._id.toString(),
+        reference: payment.reference!,
+        gateway: 'fidelity',
+        status: payment.status,
+        paymentType: payment.paymentType,
+        virtualAccount: {
+          accountNumber: virtudaResult.accountNumber,
+          accountName: virtudaResult.accountName,
+          bankName: virtudaResult.bankName,
+          amount: virtudaResult.expectedAmount,
+          expiryTime: virtudaResult.expiryTime,
+          accountGenerationId: virtudaResult.reference,
+          status: virtudaResult.status,
+        },
+        createdAt: payment.createdAt!,
+      };
+    } catch (error) {
+      this.logger.error(`Fidelity payment initialization failed: ${error.message}`);
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Failed to initialize Fidelity payment: ${error.message}`);
+    }
+  }
+
+  async initiateFidelityLookupPayment(
+    submissionId: string,
+    email: string,
+    amountOverride?: number,
+  ): Promise<{
+    success: boolean;
+    gateway: string;
+    reference: string;
+    virtualAccount: any;
+    payment: { reference: string; amount: number };
+    proprietor: any;
+    school: any;
+  }> {
+    try {
+      this.logger.log(`🏦 Initiating Fidelity lookup payment for submission: ${submissionId}`);
+
+      let proprietor = await this.proprietorModel.findOne({ submissionId }).populate('school');
+      if (!proprietor && submissionId.match(/^[0-9a-fA-F]{24}$/)) {
+        proprietor = await this.proprietorModel.findById(submissionId).populate('school');
+      }
+
+      if (!proprietor) {
+        throw new NotFoundException('Proprietor not found');
+      }
+
+      if (proprietor.clearingStatus === 'cleared') {
+        throw new BadRequestException('Payment already cleared for this proprietor');
+      }
+
+      let schoolId = proprietor.school;
+      if (!schoolId) {
+        const school = await this.schoolModel.findOne({ proprietorId: proprietor._id });
+        if (school) {
+          schoolId = school._id as any;
+          await this.proprietorModel.findByIdAndUpdate(proprietor._id, { school: school._id });
+        }
+      }
+
+      let totalAmount = amountOverride;
+      if (!totalAmount || totalAmount <= 0) {
+        if (proprietor.totalAmountDue && proprietor.totalAmountDue > 0) {
+          totalAmount = proprietor.totalAmountDue;
+        } else {
+          const fees = await this.feeConfigurationModel.find({ isActive: true }).lean();
+          const baseTotalAmount = fees.reduce((sum: number, fee: any) => sum + fee.amount, 0);
+          totalAmount = baseTotalAmount > 0 ? baseTotalAmount : 14500;
+        }
+      }
+
+      const virtudaResult = await this.fidelityService.initializeDynamicVirtualAccount({
+        amount: totalAmount,
+        durationMinutes: 60,
+      });
+
+      const amountInKobo = Math.round(totalAmount * 100);
+
+      const payment = new this.paymentModel({
+        proprietorId: proprietor._id,
+        schoolId: schoolId,
+        amount: amountInKobo,
+        currency: 'NGN',
+        status: 'pending',
+        paymentMethod: 'fidelity',
+        gateway: 'fidelity',
+        reference: virtudaResult.reference,
+        accountGenerationId: virtudaResult.reference,
+        accountNumber: virtudaResult.accountNumber,
+        accountName: virtudaResult.accountName,
+        bankName: virtudaResult.bankName || 'Fidelity Bank',
+        expiryTime: virtudaResult.expiryTime ? new Date(virtudaResult.expiryTime) : undefined,
+        paymentType: 'registration_fee',
+        description: `Dues & registration payment for ${proprietor.firstName} ${proprietor.lastName} via Fidelity Bank`,
+        email: email || proprietor.email,
+        virtualAccount: {
+          accountNumber: virtudaResult.accountNumber,
+          accountName: virtudaResult.accountName,
+          bankName: virtudaResult.bankName,
+          amount: virtudaResult.expectedAmount,
+          expiryTime: virtudaResult.expiryTime,
+          accountGenerationId: virtudaResult.reference,
+        },
+        metadata: {
+          submissionId: proprietor.submissionId,
+          channel: 'fidelity_virtual_account',
+          lookupPayment: true,
+        },
+      });
+
+      await payment.save();
+
+      return {
+        success: true,
+        gateway: 'fidelity',
+        reference: virtudaResult.reference,
+        payment: {
+          reference: virtudaResult.reference,
+          amount: totalAmount,
+        },
+        virtualAccount: {
+          accountNumber: virtudaResult.accountNumber,
+          accountName: virtudaResult.accountName,
+          bankName: virtudaResult.bankName,
+          amount: virtudaResult.expectedAmount,
+          expiryTime: virtudaResult.expiryTime,
+          accountGenerationId: virtudaResult.reference,
+          status: virtudaResult.status,
+        },
+        proprietor: {
+          firstName: proprietor.firstName,
+          lastName: proprietor.lastName,
+          email: proprietor.email,
+          phone: proprietor.phone,
+          submissionId: proprietor.submissionId,
+        },
+        school: proprietor.school ? {
+          schoolName: (proprietor.school as any).schoolName,
+          lga: (proprietor.school as any).lga,
+        } : null,
+      };
+    } catch (error) {
+      this.logger.error(`Initiate Fidelity lookup payment failed: ${error.message}`);
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Failed to initiate Fidelity payment: ${error.message}`);
+    }
+  }
+
+  async handleFidelityWebhook(
+    payload: Record<string, any>,
+    signature?: string,
+  ): Promise<{ success: boolean; processed: boolean; reason?: string; deduplicated?: boolean }> {
+    try {
+      this.logger.log(`📥 Fidelity webhook received: ${JSON.stringify(payload)}`);
+
+      if (signature && !this.fidelityService.verifyWebhookSignature(JSON.stringify(payload), signature)) {
+        this.logger.error('Invalid Fidelity webhook signature');
+        throw new BadRequestException('Invalid webhook signature');
+      }
+
+      const reference =
+        payload.accountGenerationId ||
+        payload.referenceId ||
+        payload.processId ||
+        payload.transactionId;
+
+      if (!reference) {
+        this.logger.error('Fidelity webhook missing reference ID');
+        return { success: false, processed: false, reason: 'Missing reference' };
+      }
+
+      const gatewayTransactionId = payload.transactionId || '';
+      const rawPaid = payload.transactionAmount || payload.amount || payload.settledAmount || 0;
+      const settledAmount = Number.parseFloat(String(payload.settledAmount || rawPaid));
+      const feeAmount = Number.parseFloat(String(payload.feeAmount || payload.fee || 0));
+      const vatAmount = Number.parseFloat(String(payload.vatAmount || payload.vat || 0));
+
+      const payment = await this.paymentModel
+        .findOne({
+          $or: [
+            { reference },
+            { accountGenerationId: reference },
+            { 'virtualAccount.accountGenerationId': reference },
+            { paystackTransactionId: gatewayTransactionId },
+          ],
+        })
+        .populate('proprietorId')
+        .populate('schoolId');
+
+      if (!payment) {
+        this.logger.warn(`No payment record found matching Fidelity reference: ${reference}`);
+        return { success: true, processed: false, reason: 'Payment record not found yet' };
+      }
+
+      if (payment.status === 'success' || payment.status === 'completed') {
+        this.logger.log(`Fidelity payment already completed: ${reference}`);
+        return { success: true, processed: true, deduplicated: true };
+      }
+
+      const now = payload.tranDateTime ? new Date(payload.tranDateTime) : new Date();
+
+      await payment.updateOne({
+        status: 'success',
+        paidAt: now,
+        settledAmount: settledAmount > 0 ? settledAmount : Math.round(payment.amount / 100),
+        feeAmount: feeAmount > 0 ? feeAmount : undefined,
+        vatAmount: vatAmount > 0 ? vatAmount : undefined,
+        senderAccountNumber: payload.senderAccountNumber,
+        senderAccountName: payload.senderAccountName,
+        senderBankName: payload.senderBankName,
+        narration: payload.narration,
+        sessionId: payload.sessionId,
+        gatewayTransactionId: gatewayTransactionId || undefined,
+        webhookReceived: true,
+        webhookData: payload,
+      });
+
+      this.logger.log(`✅ Payment ${payment.reference} updated to SUCCESS via Fidelity webhook`);
+
+      if (payment.proprietorId) {
+        const proprietorId = (payment.proprietorId as any)._id || payment.proprietorId;
+        const amountInNaira = Math.round(payment.amount / 100);
+
+        const remittanceBreakdown = {
+          duesTotal: amountInNaira,
+          localChapter20Pct: Math.round(amountInNaira * 0.20),
+          stateChapter35Pct: Math.round(amountInNaira * 0.35),
+          zonalChapter20Pct: Math.round(amountInNaira * 0.20),
+          nationalSecretariat25Pct: Math.round(amountInNaira * 0.25),
+          processedAt: now,
+          gateway: 'fidelity',
+        };
+
+        const duesHistoryItem = {
+          sessionId: '2025/2026',
+          amountPaid: amountInNaira,
+          paymentDate: now,
+          receiptNumber: payment.reference,
+          status: 'confirmed',
+          gateway: 'fidelity',
+          remittanceBreakdown,
+        };
+
+        await this.proprietorModel.findByIdAndUpdate(proprietorId, {
+          clearingStatus: 'cleared',
+          totalAmountDue: 0,
+          paymentStatus: 'paid',
+          lastPaymentDate: now,
+          $push: { duesPaymentHistory: duesHistoryItem },
+        });
+
+        this.logger.log(`🏛️ Proprietor ${proprietorId} marked as CLEARED with 4-tier dues remittance recorded`);
+
+        try {
+          const proprietor: any = payment.proprietorId;
+          const fullName = `${proprietor.firstName || ''} ${proprietor.middleName || ''} ${proprietor.lastName || ''}`.trim();
+          const email = proprietor.email || payment.email;
+
+          if (email && email.includes('@')) {
+            await this.emailService.sendPaymentConfirmationEmail(email, {
+              proprietorName: fullName || 'Proprietor',
+              amount: payment.amount,
+              reference: payment.reference || reference,
+              paymentType:
+                payment.paymentType === 'registration_fee'
+                  ? 'NAPPS Registration & Annual Dues'
+                  : payment.paymentType,
+            });
+            this.logger.log(`📧 Fidelity payment confirmation email sent to ${email}`);
+          }
+        } catch (emailErr) {
+          this.logger.error(`Failed to send Fidelity payment confirmation email: ${emailErr.message}`);
+        }
+      }
+
+      return { success: true, processed: true };
+    } catch (error) {
+      this.logger.error(`Fidelity webhook processing failed: ${error.message}`);
+      return { success: false, processed: false, reason: error.message };
+    }
+  }
+
+  async getFidelityPaymentStatus(reference: string): Promise<any> {
+    const payment = await this.paymentModel
+      .findOne({
+        $or: [
+          { reference },
+          { accountGenerationId: reference },
+          { 'virtualAccount.accountGenerationId': reference },
+        ],
+      })
+      .populate('proprietorId', 'firstName middleName lastName email phone clearingStatus registrationNumber')
+      .populate('schoolId', 'schoolName lga');
+
+    if (!payment) {
+      throw new NotFoundException(`Payment not found for reference: ${reference}`);
+    }
+
+    const isSuccess = payment.status === 'success' || payment.status === 'completed';
+
+    return {
+      status: payment.status,
+      isCleared: isSuccess,
+      reference: payment.reference,
+      gateway: payment.gateway || 'fidelity',
+      amount: payment.amount / 100,
+      paidAt: payment.paidAt,
+      expiryTime: payment.expiryTime,
+      virtualAccount: payment.virtualAccount || {
+        accountNumber: payment.accountNumber,
+        accountName: payment.accountName,
+        bankName: payment.bankName || 'Fidelity Bank',
+      },
+      proprietor: payment.proprietorId,
+      school: payment.schoolId,
+    };
+  }
+
 
   async verifyPayment(verifyPaymentDto: VerifyPaymentDto): Promise<PaymentDocument> {
     try {

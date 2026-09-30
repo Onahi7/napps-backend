@@ -122,10 +122,10 @@ export class ConnectHubSeederService implements OnModuleInit {
   private async seedMembers() {
     const members = [
       {
-        name: 'Dr. Adamu Hassan',
+        name: 'State Chairman',
         position: 'State Chairman',
-        bio: 'Leading educational transformation in Nasarawa State with over 20 years of experience in private school administration and educational policy development.',
-        imageUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+        bio: 'Executive Chairman, National Association of Proprietors of Private Schools (NAPPS), Nasarawa State Chapter.',
+        imageUrl: '/placeholder.svg',
         displayOrder: 1,
         isActive: true,
         email: 'chairman@nappsnasarawa.com',
@@ -136,10 +136,10 @@ export class ConnectHubSeederService implements OnModuleInit {
         }
       },
       {
-        name: 'Mrs. Fatima Aliyu',
+        name: 'Secretary General',
         position: 'Secretary General',
-        bio: 'Dedicated to improving educational standards and member welfare. Expert in organizational management and stakeholder engagement.',
-        imageUrl: 'https://images.unsplash.com/photo-1494790108755-2616b612b2be?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+        bio: 'Secretariat Administration, NAPPS Nasarawa State Chapter.',
+        imageUrl: '/placeholder.svg',
         displayOrder: 2,
         isActive: true,
         email: 'secretary@nappsnasarawa.com',
@@ -150,9 +150,9 @@ export class ConnectHubSeederService implements OnModuleInit {
         }
       },
       {
-        name: 'Prof. John Musa',
+        name: 'Academic Director',
         position: 'Academic Director',
-        bio: 'Expert in curriculum development and educational policy with extensive experience in higher education and research.',
+        bio: 'Academic Directorate & Examination Board, NAPPS Nasarawa State Chapter.',
         imageUrl: '/placeholder.svg',
         displayOrder: 3,
         isActive: true,
@@ -164,9 +164,9 @@ export class ConnectHubSeederService implements OnModuleInit {
         }
       },
       {
-        name: 'Mrs. Grace Ocheni',
+        name: 'State Treasurer',
         position: 'Treasurer',
-        bio: 'Financial management and strategic planning specialist with a focus on sustainable organizational growth and member benefits.',
+        bio: 'Treasury & Financial Administration, NAPPS Nasarawa State Chapter.',
         imageUrl: '/placeholder.svg',
         displayOrder: 4,
         isActive: true,

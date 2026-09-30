@@ -103,68 +103,6 @@ export class SchoolsController {
     return await this.schoolsService.findSchoolsByProprietor(proprietorId);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a school by ID' })
-  @ApiParam({ name: 'id', description: 'School ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'School found successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'School not found',
-  })
-  async findSchoolById(@Param('id') id: string) {
-    return await this.schoolsService.findSchoolById(id);
-  }
-
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update a school (Admin only)' })
-  @ApiParam({ name: 'id', description: 'School ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'School updated successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'School not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Authentication required',
-  })
-  async updateSchool(@Param('id') id: string, @Body() updateSchoolDto: UpdateSchoolDto) {
-    return await this.schoolsService.updateSchool(id, updateSchoolDto);
-  }
-
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete a school (Admin only)' })
-  @ApiParam({ name: 'id', description: 'School ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'School deleted successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'School not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Cannot delete school with existing enrollments',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Authentication required',
-  })
-  async deleteSchool(@Param('id') id: string) {
-    await this.schoolsService.deleteSchool(id);
-    return { message: 'School deleted successfully' };
-  }
-
   // =============== ENROLLMENT ENDPOINTS ===============
 
   @Post('enrollments')
@@ -290,5 +228,69 @@ export class SchoolsController {
   async deleteEnrollment(@Param('id') id: string) {
     await this.schoolsService.deleteEnrollment(id);
     return { message: 'Enrollment deleted successfully' };
+  }
+
+  // =============== SPECIFIC SCHOOL BY ID ENDPOINTS ===============
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a school by ID' })
+  @ApiParam({ name: 'id', description: 'School ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'School found successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'School not found',
+  })
+  async findSchoolById(@Param('id') id: string) {
+    return await this.schoolsService.findSchoolById(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a school (Admin only)' })
+  @ApiParam({ name: 'id', description: 'School ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'School updated successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'School not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Authentication required',
+  })
+  async updateSchool(@Param('id') id: string, @Body() updateSchoolDto: UpdateSchoolDto) {
+    return await this.schoolsService.updateSchool(id, updateSchoolDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a school (Admin only)' })
+  @ApiParam({ name: 'id', description: 'School ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'School deleted successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'School not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Cannot delete school with existing enrollments',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Authentication required',
+  })
+  async deleteSchool(@Param('id') id: string) {
+    await this.schoolsService.deleteSchool(id);
+    return { message: 'School deleted successfully' };
   }
 }
