@@ -17,7 +17,7 @@ import {
   IsObject,
   IsIn
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { Types } from 'mongoose';
 import { NAPPS_CHAPTERS } from '../../constants/napps-chapters';
 
@@ -343,12 +343,14 @@ export class UpdateEnrollmentDto extends PartialType(CreateEnrollmentDto) {
 
 export class SchoolQueryDto {
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   @Min(1)
   page?: number;
 
   @ApiPropertyOptional({ description: 'Items per page', default: 10 })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   @Min(1)
@@ -386,11 +388,13 @@ export class SchoolQueryDto {
   categoryOfSchool?: string;
 
   @ApiPropertyOptional({ description: 'Filter by active status' })
+  @Transform(({ value }) => (value === undefined ? undefined : value === true || value === 'true'))
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
 
   @ApiPropertyOptional({ description: 'Filter by primary school status' })
+  @Transform(({ value }) => (value === undefined ? undefined : value === true || value === 'true'))
   @IsBoolean()
   @IsOptional()
   isPrimary?: boolean;
@@ -414,12 +418,14 @@ export class SchoolQueryDto {
 
 export class EnrollmentQueryDto {
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   @Min(1)
   page?: number;
 
   @ApiPropertyOptional({ description: 'Items per page', default: 10 })
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   @Min(1)
