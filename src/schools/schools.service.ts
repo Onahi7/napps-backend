@@ -99,7 +99,9 @@ export class SchoolsService {
       ];
     }
 
-    if (proprietorId) filter.proprietorId = proprietorId;
+    if (proprietorId) {
+      Object.assign(filter, { $expr: { $eq: [{ $toString: '$proprietorId' }, proprietorId] } });
+    }
     if (lga) filter.lga = { $regex: lga, $options: 'i' };
     if (aeqeoZone) filter.aeqeoZone = { $regex: aeqeoZone, $options: 'i' };
     if (typeOfSchool) filter.typeOfSchool = { $regex: typeOfSchool, $options: 'i' };
@@ -148,7 +150,7 @@ export class SchoolsService {
 
   async findSchoolsByProprietor(proprietorId: string): Promise<SchoolDocument[]> {
     return await this.schoolModel
-      .find({ proprietorId, isActive: true })
+      .find({ $expr: { $eq: [{ $toString: '$proprietorId' }, proprietorId] } } as FilterQuery<SchoolDocument>)
       .populate('proprietorId', 'firstName lastName email phone registrationNumber');
   }
 
