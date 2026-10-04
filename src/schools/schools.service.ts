@@ -1,6 +1,6 @@
-import { Injectable, BadRequestException, NotFoundException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ConflictException, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, FilterQuery, SortOrder } from 'mongoose';
+import { Model, FilterQuery, SortOrder, Types } from 'mongoose';
 import { School, SchoolDocument } from '../schemas/school.schema';
 import { Enrollment, EnrollmentDocument } from '../schemas/enrollment.schema';
 import { Proprietor, ProprietorDocument } from '../schemas/proprietor.schema';
@@ -15,12 +15,66 @@ import {
 import { NAPPS_CHAPTERS } from '../constants/napps-chapters';
 
 @Injectable()
-export class SchoolsService {
+export class SchoolsService implements OnModuleInit {
+  private readonly logger = new Logger(SchoolsService.name);
+
   constructor(
     @InjectModel(School.name) private schoolModel: Model<SchoolDocument>,
     @InjectModel(Enrollment.name) private enrollmentModel: Model<EnrollmentDocument>,
     @InjectModel(Proprietor.name) private proprietorModel: Model<ProprietorDocument>,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.repairOwnerLinks();
+  }
+
+  /**
+   * Legacy documents created through POST /schools never wrote the
+   * proprietor -> school back-reference, so id-card/receipt/validation-form
+   * renders that populate `school` came back empty. Idempotent: after the
+   * first successful pass every owner link is already set and this is a no-op.
+   */
+  private async repairOwnerLinks(): Promise<void> {
+    try {
+      const [schools, proprietors] = await Promise.all([
+        this.schoolModel.find({}).select('proprietorId isPrimary').lean(),
+        this.proprietorModel.find({}).select('school').lean(),
+      ]);
+
+      const byOwner = new Map<string, Array<{ _id: Types.ObjectId; isPrimary: boolean }>>();
+      for (const s of schools) {
+        if (!s.proprietorId) continue;
+        const ownerId = String(s.proprietorId);
+        const list = byOwner.get(ownerId) || [];
+        list.push({ _id: s._id, isPrimary: !!s.isPrimary });
+        byOwner.set(ownerId, list);
+      }
+
+      const writes = proprietors
+        .filter((p) => !p.school)
+        .map((p) => {
+          const candidates = byOwner.get(String(p._id));
+          if (!candidates?.length) return null;
+          const chosen = candidates.find((c) => c.isPrimary) || candidates[0];
+          return {
+            updateOne: {
+              filter: { _id: p._id, school: null },
+              update: { $set: { school: chosen._id } },
+            },
+          };
+        })
+        .filter((w): w is NonNullable<typeof w> => w !== null);
+
+      if (writes.length > 0) {
+        const res = await this.proprietorModel.bulkWrite(writes);
+        this.logger.log(`Repaired ${res.modifiedCount}/${writes.length} proprietor -> school back-links`);
+      } else {
+        this.logger.log('Proprietor <-> school links already consistent, nothing to repair');
+      }
+    } catch (error) {
+      this.logger.error(`Proprietor/school link repair failed: ${(error as Error).message}`);
+    }
+  }
 
   // =============== SCHOOL MANAGEMENT ===============
 
@@ -47,14 +101,26 @@ export class SchoolsService {
 
       // If this is marked as primary, ensure no other primary school exists for this proprietor
       if (createSchoolDto.isPrimary) {
-        await this.schoolModel.updateMany(
-          { proprietorId: createSchoolDto.proprietorId },
-          { isPrimary: false }
-        );
+        const siblings = await this.schoolModel
+          .find({ $expr: { $eq: [{ $toString: '$proprietorId' }, createSchoolDto.proprietorId] } })
+          .select('_id')
+          .lean();
+        if (siblings.length > 0) {
+          await this.schoolModel.updateMany({ _id: { $in: siblings.map((s) => s._id) } }, { isPrimary: false });
+        }
       }
 
       const school = new this.schoolModel(createSchoolDto);
-      return await school.save();
+      const saved = await school.save();
+
+      // Keep the proprietor -> school back-reference in sync so id-card,
+      // receipt and validation-form renders can populate the school.
+      if (!proprietor.school || createSchoolDto.isPrimary) {
+        proprietor.school = saved._id;
+        await proprietor.save();
+      }
+
+      return saved;
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
         throw error;
