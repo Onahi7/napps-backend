@@ -15,7 +15,7 @@ async function bootstrap() {
         'https://nappsnasarawa.com',
         'https://portal.nappsnasarawa.com',
         'https://connect.nappsnasarawa.com',
-        'https://api.nappsnasarawa.com',
+        'https://napps-backend-5ty7.onrender.com',
         'https://lovable.dev',
         /\.lovable\.dev$/, // Allow all Lovable preview URLs
         /\.vercel\.app$/, // Allow Vercel preview URLs
