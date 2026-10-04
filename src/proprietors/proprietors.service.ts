@@ -493,6 +493,9 @@ export class ProprietorsService {
       nappsRegistered,
       clearingStatus,
       isActive,
+      chapter,
+      dateFrom,
+      dateTo,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = query;
@@ -516,6 +519,18 @@ export class ProprietorsService {
     if (nappsRegistered) filter.nappsRegistered = nappsRegistered;
     if (clearingStatus) filter.clearingStatus = clearingStatus;
     if (typeof isActive === 'boolean') filter.isActive = isActive;
+    if (chapter && chapter !== 'all') filter.chapters = chapter;
+
+    const createdAtRange: { $gte?: Date; $lte?: Date } = {};
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      if (!Number.isNaN(from.getTime())) createdAtRange.$gte = from;
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      if (!Number.isNaN(to.getTime())) createdAtRange.$lte = to;
+    }
+    if (createdAtRange.$gte || createdAtRange.$lte) filter.createdAt = createdAtRange;
 
     // Build sort object
     const sort: { [key: string]: SortOrder } = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
