@@ -6,6 +6,7 @@ import csv from 'csv-parser';
 import { Readable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
+import { createHash } from 'node:crypto';
 import { Proprietor, ProprietorDocument } from '../schemas/proprietor.schema';
 import { School, SchoolDocument } from '../schemas/school.schema';
 import { Payment, PaymentDocument } from '../schemas/payment.schema';
@@ -1600,7 +1601,7 @@ export class ProprietorsService {
       paymentMethod: 'Paystack Automated Gateway',
       paymentStatus: 'COMPLETED / VERIFIED',
       distribution,
-      securityHash: crypto.createHash('sha256').update(`${receiptNumber}:${totalDues}:NAPPS_NAS_2026`).digest('hex').substring(0, 16).toUpperCase(),
+      securityHash: createHash('sha256').update(`${receiptNumber}:${totalDues}:NAPPS_NAS_2026`).digest('hex').substring(0, 16).toUpperCase(),
       qrVerificationData: `https://nappsnasarawa.com/verify?receipt=${receiptNumber}`
     };
   }

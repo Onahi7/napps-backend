@@ -129,6 +129,10 @@ export class Proprietor {
   @Prop()
   approvalEvidence?: string;
 
+  // Legacy payment reference (bank/manual registrations)
+  @Prop()
+  reference?: string;
+
   // School enrollment data
   @Prop({ type: Number })
   pupilsPresentedLastExam?: number;
