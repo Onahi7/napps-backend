@@ -255,6 +255,21 @@ export class ProprietorQueryDto {
   @IsOptional()
   isActive?: boolean;
 
+  @ApiPropertyOptional({ description: 'Filter by NAPPS chapter (matches any chapter on the record)' })
+  @IsString()
+  @IsOptional()
+  chapter?: string;
+
+  @ApiPropertyOptional({ description: 'Filter records created on or after this ISO date (inclusive)' })
+  @IsString()
+  @IsOptional()
+  dateFrom?: string;
+
+  @ApiPropertyOptional({ description: 'Filter records created on or before this ISO date (inclusive)' })
+  @IsString()
+  @IsOptional()
+  dateTo?: string;
+
   @ApiPropertyOptional({ 
     enum: ['firstName', 'lastName', 'email', 'createdAt', 'totalAmountDue'],
     description: 'Sort by field',
