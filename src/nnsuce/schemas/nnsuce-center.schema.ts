@@ -23,7 +23,7 @@ export class NnsuceCenter {
   @Prop({ required: true })
   supervisorName: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false, default: '' })
   supervisorPhone: string;
 
   @Prop({ default: true })

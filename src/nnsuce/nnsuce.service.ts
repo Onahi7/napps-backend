@@ -57,7 +57,12 @@ export class NnsuceService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.seedDefaultCenters();
+    try {
+      await this.seedDefaultCenters();
+    } catch (err) {
+      // Never let boot-time seeding take the whole API down
+      this.logger.error(`Failed to seed default NNSUCE centers: ${(err as Error).message}`);
+    }
   }
 
   private async seedDefaultCenters() {
