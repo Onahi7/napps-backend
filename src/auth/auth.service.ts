@@ -46,8 +46,10 @@ export class AuthService {
     user.lastLoginAt = new Date();
     await user.save();
 
+    const userId = (user._id || user.id).toString();
+
     // Generate JWT token
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = { sub: userId, userId, email: user.email, role: user.role };
     const access_token = this.jwtService.sign(payload);
 
     return {
@@ -55,7 +57,7 @@ export class AuthService {
       token_type: 'Bearer',
       expires_in: 7 * 24 * 60 * 60, // 7 days in seconds
       user: {
-        id: user.id,
+        id: userId,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
