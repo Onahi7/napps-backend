@@ -29,13 +29,25 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: any) {
     this.logger.debug(`JWT payload received: ${JSON.stringify(payload)}`);
     
-    const user = await this.userModel
-      .findById(payload.sub)
-      .select('+password')
-      .exec();
+    const userId = payload.sub || payload.userId || payload.id;
+    let user = null;
+
+    if (userId) {
+      user = await this.userModel
+        .findById(userId)
+        .select('+password')
+        .exec();
+    }
+
+    if (!user && payload.email) {
+      user = await this.userModel
+        .findOne({ email: payload.email })
+        .select('+password')
+        .exec();
+    }
 
     if (!user) {
-      this.logger.warn(`User not found for ID: ${payload.sub}`);
+      this.logger.warn(`User not found for identifier: ${userId || payload.email}`);
       throw new UnauthorizedException('User not found or inactive');
     }
 
