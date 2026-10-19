@@ -216,6 +216,10 @@ export class PaymentsController {
       amount: payment.amount / 100, // Convert from kobo to naira
       paidAt: payment.paidAt,
       paymentType: payment.paymentType,
+      paymentMethod: payment.paymentMethod,
+      gateway: payment.gateway,
+      simulated: payment.metadata?.simulated === true,
+      fees: payment.metadata?.fees || [],
       proprietor: payment.proprietorId ? {
         firstName: (payment.proprietorId as any).firstName,
         middleName: (payment.proprietorId as any).middleName,

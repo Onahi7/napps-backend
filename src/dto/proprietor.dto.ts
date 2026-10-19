@@ -463,9 +463,9 @@ export class SaveStep3Dto {
   @IsOptional()
   finalSubmit?: boolean;
 
-  @ApiPropertyOptional({ enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'] })
+  @ApiPropertyOptional({ enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda', 'mock'] })
   @IsOptional()
-  @IsEnum(['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'])
+  @IsEnum(['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda', 'mock'])
   paymentMethod?: string;
 
   @ApiPropertyOptional({ enum: ['Not Paid', 'Pending', 'Paid', 'Partially Paid'] })
@@ -480,9 +480,9 @@ export class SaveStep3Dto {
 }
 
 export class Step3PaymentInfoDto {
-  @ApiPropertyOptional({ enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'] })
+  @ApiPropertyOptional({ enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda', 'mock'] })
   @IsOptional()
-  @IsEnum(['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'])
+  @IsEnum(['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda', 'mock'])
   paymentMethod?: string;
 
 
@@ -539,9 +539,9 @@ export class CompleteRegistrationDto {
   @IsString()
   schoolId: string;
 
-  @ApiPropertyOptional({ enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'] })
+  @ApiPropertyOptional({ enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda', 'mock'] })
   @IsOptional()
-  @IsEnum(['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'])
+  @IsEnum(['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda', 'mock'])
   paymentMethod?: string;
 
   @ApiPropertyOptional()

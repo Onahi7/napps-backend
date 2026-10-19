@@ -5,7 +5,6 @@ import { Model, FilterQuery, SortOrder } from 'mongoose';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios';
 import { createHash } from 'node:crypto';
 import { Proprietor, ProprietorDocument } from '../schemas/proprietor.schema';
 import { School, SchoolDocument } from '../schemas/school.schema';
@@ -27,13 +26,11 @@ import {
 import { UpdateChaptersDto, BulkUpdateChaptersDto } from './dto/chapters.dto';
 import { DEFAULT_CHAPTERS } from '../common/constants/napps-chapters';
 import type { NappsChapter } from '../common/constants/napps-chapters';
-import { FidelityService } from '../payments/fidelity.service';
 
 @Injectable()
 export class ProprietorsService {
   constructor(
     private configService: ConfigService,
-    private fidelityService: FidelityService,
     @InjectModel(Proprietor.name) private proprietorModel: Model<ProprietorDocument>,
     @InjectModel(School.name) private schoolModel: Model<SchoolDocument>,
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
@@ -202,16 +199,16 @@ export class ProprietorsService {
       if (data.approvalStatus) proprietor.approvalStatus = data.approvalStatus;
       if (data.approvalEvidence) proprietor.approvalEvidence = data.approvalEvidence;
 
-      // Handle Fidelity Bank payment initialization
-      if ((data.paymentMethod === 'fidelity' || data.paymentMethod === 'virtuda') && !finalSubmit) {
+      // Mock payment gateway
+      // Live gateways (Paystack/Fidelity) are temporarily disabled. Every
+      // non-final step routes the proprietor through the in-app mock card
+      // page, which finalizes and approves the registration on success.
+      if (!finalSubmit) {
         const fees = await this.feeConfigModel.find({ isActive: true }).lean();
         const baseTotalAmount = fees.reduce((sum, fee) => sum + fee.amount, 0);
-        const totalAmount = baseTotalAmount > 0 ? baseTotalAmount * 2 : 14500;
+        const totalAmount = baseTotalAmount > 0 ? baseTotalAmount : 14500;
 
-        const virtudaResult = await this.fidelityService.initializeDynamicVirtualAccount({
-          amount: totalAmount,
-          durationMinutes: 60,
-        });
+        const reference = `MOCK_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 
         const paymentData = {
           proprietorId: proprietor._id,
@@ -219,176 +216,43 @@ export class ProprietorsService {
           amount: Math.round(totalAmount * 100),
           currency: 'NGN',
           status: 'pending',
-          paymentMethod: 'fidelity',
-          gateway: 'fidelity',
-          reference: virtudaResult.reference,
-          accountGenerationId: virtudaResult.reference,
-          accountNumber: virtudaResult.accountNumber,
-          accountName: virtudaResult.accountName,
-          bankName: virtudaResult.bankName || 'Fidelity Bank',
-          expiryTime: virtudaResult.expiryTime ? new Date(virtudaResult.expiryTime) : undefined,
+          paymentMethod: 'mock',
+          gateway: 'mock',
+          reference,
           paymentType: 'registration_fee',
           email: proprietor.email,
-          description: `Registration fees for ${proprietor.firstName} ${proprietor.lastName} via Fidelity Bank`,
-          virtualAccount: {
-            accountNumber: virtudaResult.accountNumber,
-            accountName: virtudaResult.accountName,
-            bankName: virtudaResult.bankName,
-            amount: virtudaResult.expectedAmount,
-            expiryTime: virtudaResult.expiryTime,
-            accountGenerationId: virtudaResult.reference,
-          },
+          description: `Registration & annual dues for ${proprietor.firstName} ${proprietor.lastName}`,
           metadata: {
             submissionId: proprietor.submissionId,
+            gateway: 'mock',
+            channel: 'mock_card',
             fees: fees.map(f => ({ code: f.code, name: f.name, amount: f.amount })),
-            channel: 'fidelity_virtual_account',
           },
         };
 
         const payment = new this.paymentModel(paymentData);
         await payment.save();
 
+        proprietor.paymentMethod = 'mock';
         proprietor.submissionStatus = 'step3';
         await proprietor.save();
 
-        return {
-          message: 'Step 3 saved successfully. Fidelity virtual account generated.',
-          proprietor,
-          gateway: 'fidelity',
-          reference: virtudaResult.reference,
-          payment: {
-            reference: virtudaResult.reference,
-            amount: totalAmount,
-          },
-          virtualAccount: {
-            accountNumber: virtudaResult.accountNumber,
-            accountName: virtudaResult.accountName,
-            bankName: virtudaResult.bankName,
-            amount: virtudaResult.expectedAmount,
-            expiryTime: virtudaResult.expiryTime,
-            accountGenerationId: virtudaResult.reference,
-            status: virtudaResult.status,
-          },
-        };
-      }
-
-      // Handle online payment initialization
-      if (data.paymentMethod === 'online' && !finalSubmit) {
-
-        // Get active fees for registration
-        const fees = await this.feeConfigModel.find({ isActive: true }).lean();
-        
-        // Double the fees for all new registrations
-        const baseTotalAmount = fees.reduce((sum, fee) => sum + fee.amount, 0);
-        const totalAmount = baseTotalAmount * 2;
-        
-        // Get split code from first active fee (if available)
-        const primaryFee = fees.find(f => f.paystackSplitCode);
-        const splitCode = primaryFee?.paystackSplitCode;
-
-        // Generate payment reference
-        const reference = `PAY_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
-        
-        // Create payment record
-        const paymentData = {
-          proprietorId: proprietor._id,
-          schoolId: proprietor.school,
-          amount: Math.round(totalAmount * 100), // Convert to kobo
-          paymentType: 'registration_fee',
-          reference,
-          status: 'pending',
-          email: proprietor.email,
-          paystackSplitCode: splitCode,
-          description: `Registration fees for ${proprietor.firstName} ${proprietor.lastName}`,
-          metadata: {
-            submissionId: proprietor.submissionId,
-            fees: fees.map(f => ({ code: f.code, name: f.name, amount: f.amount })),
-          },
-        };
-
-        const payment = new this.paymentModel(paymentData);
-        await payment.save();
-
-        // Check if we're in simulation mode (no Paystack key = simulation mode)
-        const paystackSecretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY');
-        const isSimulationMode = !paystackSecretKey || paystackSecretKey === 'simulation';
-        
         const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+        const paymentUrl = `${frontendUrl}/payment/simulate?reference=${reference}`;
 
-        if (isSimulationMode) {
-          // Return simulated payment data
-          return {
-            message: 'Step 3 saved successfully',
-            proprietor,
-            payment: {
-              reference,
-              amount: totalAmount,
-              simulationMode: true,
-              paymentUrl: `${frontendUrl}/payment/simulate?reference=${reference}`,
-            },
-          };
-        }
-
-        // Real Paystack initialization
-        const paystackPayload: any = {
-          email: proprietor.email,
-          amount: Math.round(totalAmount * 100), // in kobo
+        return {
+          message: 'Step 3 saved successfully. Continue to secure payment.',
+          proprietor,
+          gateway: 'mock',
           reference,
-          currency: 'NGN',
-          callback_url: `${frontendUrl}/payment/status?reference=${reference}`,
-          metadata: {
-            proprietorId: String((proprietor as any)._id),
-            submissionId: proprietor.submissionId,
-            paymentId: String((payment as any)._id),
-            custom_fields: [
-              {
-                display_name: 'Proprietor',
-                variable_name: 'proprietor',
-                value: `${proprietor.firstName} ${proprietor.lastName}`,
-              },
-              {
-                display_name: 'Payment Type',
-                variable_name: 'payment_type',
-                value: 'registration_fee',
-              },
-            ],
+          paymentUrl,
+          payment: {
+            reference,
+            amount: totalAmount,
+            simulationMode: true,
+            paymentUrl,
           },
         };
-
-        // Add split code if available
-        if (splitCode) {
-          paystackPayload.split_code = splitCode;
-        }
-
-        // Call Paystack API
-        const response = await axios.post(
-          'https://api.paystack.co/transaction/initialize',
-          paystackPayload,
-          {
-            headers: {
-              Authorization: `Bearer ${paystackSecretKey}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-
-        if (response.data.status) {
-          // Update payment with Paystack reference
-          await payment.updateOne({
-            paystackTransactionId: response.data.data.reference,
-          });
-
-          proprietor.submissionStatus = 'step3';
-          await proprietor.save();
-
-          return {
-            proprietor,
-            paymentUrl: response.data.data.authorization_url,
-            reference: payment.reference,
-          };
-        } else {
-          throw new BadRequestException('Failed to initialize payment with Paystack');
-        }
       }
 
       // Handle bank transfer or final submit

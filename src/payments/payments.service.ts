@@ -239,6 +239,7 @@ export class PaymentsService {
             status: payment.status,
             amount: payment.amount / 100,
             paidAt: payment.paidAt,
+            registrationNumber: payment.metadata?.registrationNumber,
           },
         };
       }
@@ -247,8 +248,20 @@ export class PaymentsService {
       const now = new Date();
       const simulatedTransactionId = `SIM_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 
+      // Fetch the proprietor so we can finalize the registration on success
+      const proprietor = payment.proprietorId
+        ? await this.proprietorModel.findById(payment.proprietorId)
+        : null;
+
+      let registrationNumber: string | undefined = proprietor?.registrationNumber;
+      if (proprietor && !registrationNumber) {
+        registrationNumber = await this.generateRegistrationNumber();
+      }
+
       await payment.updateOne({
         status: 'success',
+        paymentMethod: 'mock',
+        gateway: 'mock',
         paystackTransactionId: simulatedTransactionId,
         paystackChannel: 'simulated_card',
         gatewayResponse: 'Simulated payment successful',
@@ -257,23 +270,56 @@ export class PaymentsService {
           ...payment.metadata,
           simulated: true,
           simulatedAt: now.toISOString(),
+          registrationNumber,
         },
       });
 
-      // Update proprietor's payment status
-      if (payment.proprietorId) {
-        await this.proprietorModel.findByIdAndUpdate(payment.proprietorId, {
+      // Finalize and approve the proprietor's registration
+      if (proprietor) {
+        const amountInNaira = Math.round(payment.amount / 100);
+
+        const remittanceBreakdown = {
+          duesTotal: amountInNaira,
+          localChapter20Pct: Math.round(amountInNaira * 0.20),
+          stateChapter35Pct: Math.round(amountInNaira * 0.35),
+          zonalChapter20Pct: Math.round(amountInNaira * 0.20),
+          nationalSecretariat25Pct: Math.round(amountInNaira * 0.25),
+          processedAt: now,
+          gateway: 'mock',
+        };
+
+        const duesHistoryItem = {
+          sessionId: '2025/2026',
+          amountPaid: amountInNaira,
+          paymentDate: now,
+          receiptNumber: payment.reference,
+          status: 'confirmed',
+          gateway: 'mock',
+          remittanceBreakdown,
+        };
+
+        await this.proprietorModel.findByIdAndUpdate(proprietor._id, {
+          registrationNumber,
+          submissionStatus: 'submitted',
+          registrationStatus: 'approved',
+          approvalStatus: 'approved',
           clearingStatus: 'cleared',
           totalAmountDue: 0,
           paymentStatus: 'paid',
+          paymentMethod: 'mock',
+          isActive: true,
           lastPaymentDate: now,
+          $push: { duesPaymentHistory: duesHistoryItem },
         });
-        this.logger.log(`✅ Proprietor ${payment.proprietorId} marked as cleared via simulation`);
+
+        this.logger.log(
+          `✅ Proprietor ${proprietor._id} finalized & approved via mock payment (${registrationNumber})`,
+        );
       }
 
       const updatedPayment = await this.paymentModel.findById(payment._id)
         .populate('proprietorId', 'firstName middleName lastName email phone chapters')
-        .populate('schoolId', 'schoolName');
+        .populate('schoolId', 'schoolName lga');
 
       this.logger.log(`🎉 Payment simulation completed successfully for ${reference}`);
 
@@ -318,6 +364,7 @@ export class PaymentsService {
           paidAt: updatedPayment!.paidAt,
           transactionId: simulatedTransactionId,
           simulated: true,
+          registrationNumber,
         },
       };
     } catch (error) {
@@ -875,6 +922,27 @@ export class PaymentsService {
   }
 
 
+  private async generateRegistrationNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const count = await this.proprietorModel.countDocuments();
+    let sequence = count + 1;
+    let candidate = `NAPPS${year}${String(sequence).padStart(4, '0')}`;
+
+    // Avoid collisions with any existing registration numbers for this year
+    const existing = await this.proprietorModel
+      .find({ registrationNumber: new RegExp(`^NAPPS${year}`) })
+      .select('registrationNumber')
+      .lean();
+    const used = new Set(existing.map((p: any) => p.registrationNumber));
+
+    while (used.has(candidate)) {
+      sequence += 1;
+      candidate = `NAPPS${year}${String(sequence).padStart(4, '0')}`;
+    }
+
+    return candidate;
+  }
+
   async verifyPayment(verifyPaymentDto: VerifyPaymentDto): Promise<PaymentDocument> {
     try {
       // Find payment in database
@@ -887,11 +955,16 @@ export class PaymentsService {
         throw new NotFoundException('Payment not found');
       }
 
-      // Check if payment is from simulation
-      const isSimulatedPayment = payment.reference.startsWith('SIM_') || payment.status === 'success';
-      
-      // If payment already successful or simulated, just return it
-      if (isSimulatedPayment && payment.status === 'success') {
+      // Mock/simulated payments never hit a live gateway, and already
+      // successful payments do not need re-verification.
+      const isSimulatedPayment =
+        payment.reference.startsWith('SIM_') ||
+        payment.reference.startsWith('MOCK_') ||
+        payment.gateway === 'mock' ||
+        payment.paymentMethod === 'mock' ||
+        payment.status === 'success';
+
+      if (isSimulatedPayment) {
         return payment;
       }
 
