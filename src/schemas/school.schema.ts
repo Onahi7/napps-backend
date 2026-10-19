@@ -74,6 +74,15 @@ export class School {
   @Prop()
   registrationEvidencePhoto?: string;
 
+  @Prop()
+  cacNumber?: string;
+
+  @Prop()
+  nnsuceTimesWritten?: string;
+
+  @Prop({ type: Number })
+  nnsucePupilsCount?: number;
+
   @Prop({ type: Object })
   enrollment?: Record<string, number>;
 

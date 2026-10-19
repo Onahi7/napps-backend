@@ -121,7 +121,7 @@ export class Proprietor {
   paymentStatus?: string;
 
   @Prop({ 
-    enum: ['paystack', 'bank_transfer', 'cash', 'online'],
+    enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'],
     default: 'paystack'
   })
   paymentMethod?: string;
