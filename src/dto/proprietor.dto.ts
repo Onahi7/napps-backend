@@ -343,6 +343,21 @@ export class SaveStep2Dto {
   @IsOptional()
   @IsNumber()
   totalEnrollment?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  cacNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  nnsuceTimesWritten?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  nnsucePupilsCount?: number;
 }
 
 export class Step2SchoolInfoDto {
@@ -448,9 +463,9 @@ export class SaveStep3Dto {
   @IsOptional()
   finalSubmit?: boolean;
 
-  @ApiPropertyOptional({ enum: ['paystack', 'bank_transfer', 'cash', 'online'] })
+  @ApiPropertyOptional({ enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'] })
   @IsOptional()
-  @IsEnum(['paystack', 'bank_transfer', 'cash', 'online'])
+  @IsEnum(['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'])
   paymentMethod?: string;
 
   @ApiPropertyOptional({ enum: ['Not Paid', 'Pending', 'Paid', 'Partially Paid'] })
@@ -524,9 +539,9 @@ export class CompleteRegistrationDto {
   @IsString()
   schoolId: string;
 
-  @ApiPropertyOptional({ enum: ['paystack', 'bank_transfer', 'cash', 'online'] })
+  @ApiPropertyOptional({ enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'] })
   @IsOptional()
-  @IsEnum(['paystack', 'bank_transfer', 'cash', 'online'])
+  @IsEnum(['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'])
   paymentMethod?: string;
 
   @ApiPropertyOptional()

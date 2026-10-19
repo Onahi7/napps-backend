@@ -48,18 +48,44 @@ export class ProprietorsService {
       const existingEmail = await this.proprietorModel.findOne({ 
         email: data.email 
       });
-      
-      if (existingEmail && existingEmail.submissionStatus !== 'draft') {
-        throw new ConflictException('A proprietor with this email already exists');
-      }
 
       // Check for existing phone
       const existingPhone = await this.proprietorModel.findOne({ 
         phone: data.phone 
       });
-      
-      if (existingPhone && existingPhone.submissionStatus !== 'draft') {
-        throw new ConflictException('A proprietor with this phone number already exists');
+
+      // Email and phone belonging to different records cannot be merged
+      if (
+        existingEmail &&
+        existingPhone &&
+        String(existingEmail._id) !== String(existingPhone._id)
+      ) {
+        throw new ConflictException(
+          'This email and phone number are linked to different registrations'
+        );
+      }
+
+      const existing = existingEmail || existingPhone;
+
+      if (existing && existing.submissionStatus === 'submitted') {
+        const field = existingEmail ? 'email' : 'phone number';
+        throw new ConflictException(`A proprietor with this ${field} already exists`);
+      }
+
+      // Resume an unfinished registration instead of creating a duplicate
+      if (existing) {
+        Object.assign(existing, data);
+        existing.submissionId = existing.submissionId || uuidv4();
+        existing.submissionStatus = 'step1';
+        existing.registrationStatus = 'pending';
+        existing.isActive = false;
+
+        await existing.save();
+
+        return {
+          submissionId: existing.submissionId!,
+          proprietor: existing,
+        };
       }
 
       // Generate unique submission ID
