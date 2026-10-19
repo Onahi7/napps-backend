@@ -27,12 +27,12 @@ export class Payment {
   status: string;
 
   @Prop({ 
-    enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda'],
+    enum: ['paystack', 'bank_transfer', 'cash', 'online', 'fidelity', 'virtuda', 'mock'],
     default: 'paystack' 
   })
   paymentMethod: string;
 
-  @Prop({ enum: ['paystack', 'fidelity', 'virtuda', 'bank_transfer'], default: 'fidelity' })
+  @Prop({ enum: ['paystack', 'fidelity', 'virtuda', 'bank_transfer', 'mock'], default: 'fidelity' })
   gateway?: string;
 
   @Prop({ unique: true, sparse: true })
