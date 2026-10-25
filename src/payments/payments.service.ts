@@ -288,8 +288,9 @@ export class PaymentsService {
           gateway: 'mock',
         };
 
+        const activeSession = (payment.metadata as any)?.session || '2026/2027';
         const duesHistoryItem = {
-          sessionId: '2025/2026',
+          sessionId: activeSession,
           amountPaid: amountInNaira,
           paymentDate: now,
           receiptNumber: payment.reference,
@@ -836,8 +837,9 @@ export class PaymentsService {
           gateway: 'fidelity',
         };
 
+        const activeSession = (payment.metadata as any)?.session || '2026/2027';
         const duesHistoryItem = {
-          sessionId: '2025/2026',
+          sessionId: activeSession,
           amountPaid: amountInNaira,
           paymentDate: now,
           receiptNumber: payment.reference,

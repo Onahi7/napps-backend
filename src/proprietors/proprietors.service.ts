@@ -1461,7 +1461,7 @@ export class ProprietorsService {
       chapter: (proprietor.chapters && proprietor.chapters[0]) || school.chapter || (lga ? `${lga} Chapter` : ''),
       issueDate: '01/01/2026',
       expiryDate: '31/12/2026',
-      academicSession: '2025/2026',
+      academicSession: '2026/2027',
       clearingStatus: proprietor.clearingStatus || 'pending',
       stateChairmanSignature: 'State Chairman, NAPPS Nasarawa',
       securityQrPayload: JSON.stringify({
@@ -1565,7 +1565,7 @@ export class ProprietorsService {
       chapter: (proprietor.chapters && proprietor.chapters[0]) || school.chapter || (proprietor.lga ? `${proprietor.lga} Chapter` : ''),
       membershipStatus: proprietor.clearingStatus === 'cleared' ? 'ACTIVE_MEMBER_IN_GOOD_STANDING' : 'REGISTERED_MEMBER',
       duesStatus: proprietor.clearingStatus === 'cleared' ? 'CLEARED' : 'PENDING_VERIFICATION',
-      validSession: '2025/2026',
+      validSession: '2026/2027',
       nnsuceAccredited: true,
       issuedAt: 'NAPPS Nasarawa State Secretariat'
     };
