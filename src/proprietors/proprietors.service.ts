@@ -46,10 +46,22 @@ export class ProprietorsService {
         email: data.email 
       });
 
-      // Check for existing phone
-      const existingPhone = await this.proprietorModel.findOne({ 
-        phone: data.phone 
-      });
+      // Clean phone input
+      data.phone = (data.phone || '').replace(/^['"\s]+|['"\s]+$/g, '').trim();
+
+      // Check for existing phone with flexible formatting (080..., +234..., etc.)
+      const cleanPhoneDigits = data.phone.replace(/\D/g, '');
+      const lastDigits = cleanPhoneDigits.length >= 10 ? cleanPhoneDigits.slice(-10) : cleanPhoneDigits;
+      const existingPhone = lastDigits && lastDigits.length >= 7
+        ? await this.proprietorModel.findOne({
+            $or: [
+              { phone: data.phone },
+              { phone: { $regex: lastDigits } }
+            ]
+          })
+        : await this.proprietorModel.findOne({ 
+            phone: data.phone 
+          });
 
       // Email and phone belonging to different records cannot be merged
       if (
@@ -66,7 +78,10 @@ export class ProprietorsService {
 
       if (existing && existing.submissionStatus === 'submitted') {
         const field = existingEmail ? 'email' : 'phone number';
-        throw new ConflictException(`A proprietor with this ${field} already exists`);
+        const school = (existing as any).schoolName ? ` (School: ${(existing as any).schoolName})` : '';
+        throw new ConflictException(
+          `A proprietor record with this ${field} is already registered${school}. Please use "Find My Record" or "Proprietor Login" to view your dashboard or pay dues.`
+        );
       }
 
       // Resume an unfinished registration instead of creating a duplicate
@@ -566,8 +581,10 @@ export class ProprietorsService {
         }
       }
 
-      // If digits present, match phone with cleaned version
+      // If digits present, match phone with cleaned version and last 10 digits
       if (cleanPhone.length >= 5) {
+        const lastDigits = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+        orConditions.push({ phone: { $regex: lastDigits, $options: 'i' } });
         orConditions.push({ phone: { $regex: cleanPhone, $options: 'i' } });
       }
 
@@ -598,8 +615,12 @@ export class ProprietorsService {
       if (email) filter.email = { $regex: escapeRegex(email), $options: 'i' };
       if (phone) {
         const cleanPhone = phone.replace(/\D/g, '');
-        console.log('📱 Searching for phone:', phone, '-> cleaned:', cleanPhone);
-        filter.phone = { $regex: cleanPhone, $options: 'i' };
+        const lastDigits = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+        console.log('📱 Searching for phone:', phone, '-> cleaned:', cleanPhone, '-> lastDigits:', lastDigits);
+        filter.$or = [
+          { phone: { $regex: lastDigits, $options: 'i' } },
+          { phone: { $regex: cleanPhone, $options: 'i' } }
+        ];
       }
       if (firstName) filter.firstName = { $regex: escapeRegex(firstName), $options: 'i' };
       if (lastName) filter.lastName = { $regex: escapeRegex(lastName), $options: 'i' };
@@ -1514,6 +1535,7 @@ export class ProprietorsService {
   // ===================== PUBLIC MEMBER VERIFICATION =====================
   async verifyMember(identifier: string) {
     const clean = identifier.trim();
+    const cleanDigits = clean.replace(/\D/g, '');
     
     // Find by membership ID, submission ID, registration number, email, or phone
     const proprietor = await this.proprietorModel.findOne({
@@ -1523,6 +1545,7 @@ export class ProprietorsService {
         { registrationNumber: clean },
         { email: clean.toLowerCase() },
         { phone: clean.replace(/\D/g, '') },
+        ...(cleanDigits.length >= 7 ? [{ phone: { $regex: cleanDigits.slice(-10), $options: 'i' } }] : []),
       ]
     }).populate('school');
 
