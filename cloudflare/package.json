@@ -1,0 +1,29 @@
+{
+  "name": "napps-backend-workers",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "NAPPS Nasarawa API on Cloudflare Workers (Hono + D1 + R2)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:schema:local": "wrangler d1 execute napps --local --file=src/db/schema.sql",
+    "db:schema:remote": "wrangler d1 execute napps --remote --file=src/db/schema.sql",
+    "db:seed:local": "wrangler d1 execute napps --local --file=src/db/seed.sql",
+    "db:seed:remote": "wrangler d1 execute napps --remote --file=src/db/seed.sql",
+    "migrate:mongo": "node --experimental-strip-types --no-warnings scripts/migrate-from-mongo.ts",
+    "test": "node --experimental-strip-types --experimental-sqlite --no-warnings test/app.test.ts && node --experimental-strip-types --experimental-sqlite --no-warnings test/registration.test.ts"
+  },
+  "dependencies": {
+    "hono": "^4.6.14",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250109.0",
+    "@types/node": "^22.20.5",
+    "mongodb": "^6.21.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^3.99.0"
+  }
+}

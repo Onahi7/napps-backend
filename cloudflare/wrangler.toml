@@ -1,0 +1,25 @@
+name = "napps-backend"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "napps"
+database_id = "67784dc1-4de2-4e09-a8af-5d1341a767e5"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "napps-uploads"
+
+[vars]
+FRONTEND_URL = "https://portal.nappsnasarawa.com"
+ALLOWED_ORIGINS = "https://nappsnasarawa.com,https://portal.nappsnasarawa.com,https://connect.nappsnasarawa.com,http://localhost:5173,http://localhost:3000,http://localhost:3002"
+
+# Secrets (set with `wrangler secret put <NAME>`):
+#   JWT_SECRET          - required, long random string
+#   RESEND_API_KEY      - optional, enables confirmation emails
+#   EMAIL_FROM          - optional, defaults to NAPPS <noreply@nappsnasarawa.com>
