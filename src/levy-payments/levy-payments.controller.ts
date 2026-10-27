@@ -70,9 +70,20 @@ export class LevyPaymentsController {
   @Get('verify/:reference')
   @ApiOperation({ summary: 'Verify payment by reference' })
   @ApiResponse({ status: 200, description: 'Payment verified successfully' })
-  async verifyPaymentByReference(@Param('reference') reference: string) {
-    this.logger.log(`Verifying levy payment by reference: ${reference}`);
-    return await this.levyPaymentsService.verifyPayment({ reference });
+  async verifyPaymentByReference(
+    @Param('reference') reference: string,
+    @Query('checkout_id') checkoutId?: string,
+  ) {
+    this.logger.log(`Verifying levy payment by reference: ${reference}, checkoutId: ${checkoutId}`);
+    return await this.levyPaymentsService.verifyPayment({ reference, checkoutId });
+  }
+
+  @Post('webhook/bachs')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Bachs webhook notification' })
+  async bachsWebhook(@Body() payload: any) {
+    this.logger.log('Received Bachs webhook call');
+    return await this.levyPaymentsService.handleBachsWebhook(payload);
   }
 
   @Post('check-duplicate')

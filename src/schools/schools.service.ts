@@ -46,7 +46,7 @@ export class SchoolsService implements OnModuleInit {
         if (!s.proprietorId) continue;
         const ownerId = String(s.proprietorId);
         const list = byOwner.get(ownerId) || [];
-        list.push({ _id: s._id, isPrimary: !!s.isPrimary });
+        list.push({ _id: s._id as any, isPrimary: !!s.isPrimary });
         byOwner.set(ownerId, list);
       }
 
@@ -116,7 +116,7 @@ export class SchoolsService implements OnModuleInit {
       // Keep the proprietor -> school back-reference in sync so id-card,
       // receipt and validation-form renders can populate the school.
       if (!proprietor.school || createSchoolDto.isPrimary) {
-        proprietor.school = saved._id;
+        proprietor.school = saved._id as any;
         await proprietor.save();
       }
 

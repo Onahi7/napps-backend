@@ -48,6 +48,12 @@ export class LevyPayment {
   flutterwavePaymentId?: string;
 
   @Prop()
+  bachsCheckoutId?: string;
+
+  @Prop()
+  bachsPaymentId?: string;
+
+  @Prop()
   paymentUrl?: string;
 
   @Prop({ 

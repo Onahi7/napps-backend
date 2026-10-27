@@ -94,6 +94,11 @@ export class VerifyLevyPaymentDto {
   @IsString()
   @IsNotEmpty()
   reference: string;
+
+  @ApiPropertyOptional({ description: 'Bachs checkout session ID' })
+  @IsString()
+  @IsOptional()
+  checkoutId?: string;
 }
 
 export class CheckDuplicateDto {
