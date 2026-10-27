@@ -385,7 +385,9 @@ export class LevyPaymentsService {
             isSuccessful =
               session.status === 'completed' ||
               session.status === 'paid' ||
-              session.payment_status === 'paid';
+              session.payment_status === 'paid' ||
+              session.charge?.status === 'successful' ||
+              session.charge?.status === 'success';
 
             if (isSuccessful) {
               updateData.status = 'success';
