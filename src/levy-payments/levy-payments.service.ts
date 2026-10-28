@@ -17,7 +17,7 @@ import {
 @Injectable()
 export class LevyPaymentsService {
   private readonly logger = new Logger(LevyPaymentsService.name);
-  private readonly LEVY_AMOUNT_NAIRA = 5600;
+  private readonly LEVY_AMOUNT_NAIRA = 5500;
   private readonly LEVY_AMOUNT_KOBO = this.LEVY_AMOUNT_NAIRA * 100;
   private readonly bachsClient: AxiosInstance;
   private readonly bachsApiKey: string;

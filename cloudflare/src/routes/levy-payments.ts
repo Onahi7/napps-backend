@@ -6,7 +6,7 @@ import { ApiError, camelizeRow, jsonBody, nowIso, uuid } from "../lib/http.ts";
 
 type Row = Record<string, any>;
 
-const LEVY_AMOUNT_KOBO = 560000;
+const LEVY_AMOUNT_KOBO = 550000;
 const BACHS_API_KEY = "***REMOVED***";
 const BACHS_WEBHOOK_SECRET = "***REMOVED***";
 
