@@ -7,6 +7,51 @@ import { ApiError, camelizeRow, jsonBody, nowIso, uuid } from "../lib/http.ts";
 type Row = Record<string, any>;
 
 const LEVY_AMOUNT_KOBO = 560000;
+const BACHS_API_KEY = "***REMOVED***";
+const BACHS_WEBHOOK_SECRET = "***REMOVED***";
+
+async function verifyBachsWebhook(rawBody: string, headers: Headers, secret: string): Promise<boolean> {
+  const timestamp = headers.get("x-bachs-timestamp");
+  const signature = headers.get("x-bachs-signature");
+  const signatureV2 = headers.get("x-bachs-signature-v2");
+
+  if (!signature && !signatureV2) return true;
+
+  try {
+    let ts = timestamp;
+    let expectedSig = signature;
+
+    if (signatureV2) {
+      const parts = signatureV2.split(",");
+      for (const part of parts) {
+        if (part.startsWith("t=")) ts = part.slice(2);
+        if (part.startsWith("v1=")) expectedSig = part.slice(3);
+      }
+    }
+
+    if (!ts || !expectedSig) return true;
+
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      enc.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+
+    const message = `${ts}.${rawBody}`;
+    const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+    const computed = Array.from(new Uint8Array(sig))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    return computed === expectedSig;
+  } catch (err) {
+    console.error("Signature verification error:", err);
+    return false;
+  }
+}
 
 const initializeSchema = z.object({
   memberName: z.string().trim().min(1),
@@ -171,10 +216,62 @@ export function levyPaymentsRoutes() {
     const receiptNumber = `NAPPS-${new Date().getFullYear()}-${String(
       Math.floor(Math.random() * 10000),
     ).padStart(4, "0")}`;
-    const frontendUrl = c.env.FRONTEND_URL || "http://localhost:5173";
-    const paymentUrl =
-      body.callbackUrl || `${frontendUrl}/payment/simulate?reference=${reference}`;
+    const amountNaira = amount / 100;
+    const amountStr = amountNaira.toFixed(2);
+    let paymentUrl = "";
+    let checkoutId = "";
+
+    try {
+      const bachsRes = await fetch("https://api.bachs.io/v1/checkout-sessions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${BACHS_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pricing: {
+            currency: "NGN",
+            amount: amountStr,
+          },
+          customer: {
+            email: body.email,
+            name: body.memberName,
+          },
+          success_url: `https://portal.nappsnasarawa.com/levy-payment/verify?reference=${reference}`,
+          cancel_url: `https://portal.nappsnasarawa.com/levy-payment`,
+          metadata: {
+            reference,
+            receiptNumber,
+            chapter: body.chapter,
+            schoolName: body.schoolName,
+            phone: body.phone,
+            wards: Array.isArray(body.wards) ? body.wards.join(", ") : "",
+          },
+        }),
+      });
+
+      if (bachsRes.ok) {
+        const bachsData: any = await bachsRes.json();
+        paymentUrl = bachsData.checkout_url;
+        checkoutId = bachsData.checkout_id;
+      } else {
+        const errText = await bachsRes.text();
+        console.error("Bachs checkout creation error:", errText);
+      }
+    } catch (err: any) {
+      console.error("Failed to connect to Bachs:", err);
+    }
+
+    if (!paymentUrl) {
+      throw new ApiError(502, "Unable to initialize secure Bachs checkout session. Please try again.");
+    }
+
     const timestamp = nowIso();
+    const metaRecord = {
+      ...(body.metadata ?? {}),
+      checkoutId,
+      gateway: "bachs",
+    };
 
     await c.env.DB.prepare(
       `INSERT INTO levy_payments (
@@ -182,7 +279,7 @@ export function levyPaymentsRoutes() {
         is_manual_school_entry, wards, amount, status, reference, receipt_number,
         payment_url, payment_method, metadata, is_active, previous_payment_reference,
         is_continuation, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'processing', ?, ?, ?, 'card', ?, 1, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'processing', ?, ?, ?, 'bachs', ?, 1, ?, ?, ?, ?)`,
     )
       .bind(
         uuid(),
@@ -198,7 +295,7 @@ export function levyPaymentsRoutes() {
         reference,
         receiptNumber,
         paymentUrl,
-        JSON.stringify(body.metadata ?? {}),
+        JSON.stringify(metaRecord),
         body.previousPaymentReference ?? duplicate?.reference ?? null,
         body.isContinuation || Boolean(duplicate) ? 1 : 0,
         timestamp,
@@ -206,7 +303,49 @@ export function levyPaymentsRoutes() {
       )
       .run();
 
-    return c.json({ reference, paymentUrl, amount: amount / 100, receiptNumber });
+    return c.json({
+      reference,
+      paymentUrl,
+      amount: amountNaira,
+      receiptNumber,
+      checkoutId,
+    });
+  });
+
+  app.post("/webhook/bachs", async (c) => {
+    try {
+      const rawBody = await c.req.text();
+      const isValid = await verifyBachsWebhook(rawBody, c.req.raw.headers, BACHS_WEBHOOK_SECRET);
+      if (!isValid) {
+        return c.json({ error: "Invalid signature" }, 400);
+      }
+
+      const payload = JSON.parse(rawBody || "{}");
+      const eventType = payload.event || payload.type;
+      const data = payload.data || {};
+      const reference = data.reference || data.metadata?.reference || data.meta?.reference;
+      const checkoutId = data.checkout_id || data.id;
+
+      if (reference) {
+        const timestamp = nowIso();
+        const gatewayResp = JSON.stringify({
+          gateway: "bachs_webhook",
+          event: eventType,
+          checkoutId,
+          processedAt: timestamp,
+        });
+
+        await c.env.DB.prepare(
+          "UPDATE levy_payments SET status = 'success', payment_method = 'Bachs (Bank Transfer / Card)', paid_at = ?, gateway_response = ?, updated_at = ? WHERE reference = ?",
+        )
+          .bind(timestamp, gatewayResp, timestamp, reference)
+          .run();
+      }
+
+      return c.json({ received: true, status: "processed" }, 200);
+    } catch (err: any) {
+      return c.json({ received: true, error: err?.message }, 200);
+    }
   });
 
   app.post("/verify", async (c) => {
@@ -370,36 +509,86 @@ async function verifyLevy(c: Context<AppEnv>, reference: string) {
     return c.json(toLevy(payment, await proprietorFor(c.env.DB, payment.proprietor_id)));
   }
 
-  const timestamp = nowIso();
-  await c.env.DB.prepare(
-    "UPDATE levy_payments SET status = 'success', payment_method = 'mock', paid_at = ?, gateway_response = ?, updated_at = ? WHERE id = ?",
-  )
-    .bind(timestamp, "Simulated payment approved", timestamp, payment.id)
-    .run();
-
-  let proprietor = await proprietorFor(c.env.DB, payment.proprietor_id);
-  if (!proprietor) {
-    proprietor = await c.env.DB.prepare(
-      "SELECT * FROM proprietors WHERE email = ? OR phone = ? LIMIT 1",
-    )
-      .bind(payment.email, payment.phone)
-      .first<Row>();
-    if (proprietor) {
-      await c.env.DB.prepare(
-        "UPDATE levy_payments SET proprietor_id = ?, updated_at = ? WHERE id = ?",
-      )
-        .bind(proprietor.id, timestamp, payment.id)
-        .run();
+  let checkoutId = c.req.query("checkout_id") || c.req.query("checkoutId");
+  if (!checkoutId && payment.metadata) {
+    try {
+      const parsed = JSON.parse(payment.metadata);
+      checkoutId = parsed.checkoutId;
+    } catch {
+      // ignore
     }
   }
-  if (proprietor) {
-    await c.env.DB.prepare(
-      "UPDATE proprietors SET payment_status = 'paid', updated_at = ? WHERE id = ?",
-    )
-      .bind(timestamp, proprietor.id)
-      .run();
+
+  let isPaidOnBachs = false;
+  let bachsData: any = null;
+
+  if (checkoutId) {
+    try {
+      const bachsRes = await fetch(`https://api.bachs.io/v1/checkout-sessions/${checkoutId}`, {
+        headers: {
+          Authorization: `Bearer ${BACHS_API_KEY}`,
+        },
+      });
+      if (bachsRes.ok) {
+        bachsData = await bachsRes.json();
+        isPaidOnBachs =
+          bachsData.status === "complete" ||
+          bachsData.payment_status === "paid" ||
+          bachsData.charge?.status === "successful";
+      }
+    } catch (err) {
+      console.error("Bachs checkout verification error:", err);
+    }
   }
 
-  const updated = { ...payment, status: "success", payment_method: "mock", paid_at: timestamp };
-  return c.json(toLevy(updated, proprietor));
+  if (isPaidOnBachs) {
+    const timestamp = nowIso();
+    const gatewayResp = JSON.stringify({
+      gateway: "bachs",
+      checkoutId,
+      charge: bachsData?.charge,
+      verifiedAt: timestamp,
+    });
+
+    await c.env.DB.prepare(
+      "UPDATE levy_payments SET status = 'success', payment_method = 'Bachs (Bank Transfer / Card)', paid_at = ?, gateway_response = ?, updated_at = ? WHERE id = ?",
+    )
+      .bind(timestamp, gatewayResp, timestamp, payment.id)
+      .run();
+
+    let proprietor = await proprietorFor(c.env.DB, payment.proprietor_id);
+    if (!proprietor) {
+      proprietor = await c.env.DB.prepare(
+        "SELECT * FROM proprietors WHERE email = ? OR phone = ? LIMIT 1",
+      )
+        .bind(payment.email, payment.phone)
+        .first<Row>();
+      if (proprietor) {
+        await c.env.DB.prepare(
+          "UPDATE levy_payments SET proprietor_id = ?, updated_at = ? WHERE id = ?",
+        )
+          .bind(proprietor.id, timestamp, payment.id)
+          .run();
+      }
+    }
+    if (proprietor) {
+      await c.env.DB.prepare(
+        "UPDATE proprietors SET payment_status = 'paid', updated_at = ? WHERE id = ?",
+      )
+        .bind(timestamp, proprietor.id)
+        .run();
+    }
+
+    const updated = {
+      ...payment,
+      status: "success",
+      payment_method: "Bachs (Bank Transfer / Card)",
+      paid_at: timestamp,
+      gateway_response: gatewayResp,
+    };
+    return c.json(toLevy(updated, proprietor));
+  }
+
+  const proprietor = await proprietorFor(c.env.DB, payment.proprietor_id);
+  return c.json(toLevy(payment, proprietor));
 }
