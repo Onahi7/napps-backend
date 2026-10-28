@@ -7,8 +7,6 @@ import { ApiError, camelizeRow, jsonBody, nowIso, uuid } from "../lib/http.ts";
 type Row = Record<string, any>;
 
 const LEVY_AMOUNT_KOBO = 550000;
-const BACHS_API_KEY = "***REMOVED***";
-const BACHS_WEBHOOK_SECRET = "***REMOVED***";
 
 async function verifyBachsWebhook(rawBody: string, headers: Headers, secret: string): Promise<boolean> {
   const timestamp = headers.get("x-bachs-timestamp");
@@ -222,10 +220,15 @@ export function levyPaymentsRoutes() {
     let checkoutId = "";
 
     try {
+      const bachsKey = c.env.BACHS_API_KEY;
+      if (!bachsKey) {
+        throw new ApiError(500, "Bachs API key is not configured in worker environment");
+      }
+
       const bachsRes = await fetch("https://api.bachs.io/v1/checkout-sessions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${BACHS_API_KEY}`,
+          Authorization: `Bearer ${bachsKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -315,7 +318,8 @@ export function levyPaymentsRoutes() {
   app.post("/webhook/bachs", async (c) => {
     try {
       const rawBody = await c.req.text();
-      const isValid = await verifyBachsWebhook(rawBody, c.req.raw.headers, BACHS_WEBHOOK_SECRET);
+      const webhookSecret = c.env.BACHS_WEBHOOK_SECRET || "";
+      const isValid = await verifyBachsWebhook(rawBody, c.req.raw.headers, webhookSecret);
       if (!isValid) {
         return c.json({ error: "Invalid signature" }, 400);
       }
@@ -524,9 +528,10 @@ async function verifyLevy(c: Context<AppEnv>, reference: string) {
 
   if (checkoutId) {
     try {
+      const bachsKey = c.env.BACHS_API_KEY || "";
       const bachsRes = await fetch(`https://api.bachs.io/v1/checkout-sessions/${checkoutId}`, {
         headers: {
-          Authorization: `Bearer ${BACHS_API_KEY}`,
+          Authorization: `Bearer ${bachsKey}`,
         },
       });
       if (bachsRes.ok) {

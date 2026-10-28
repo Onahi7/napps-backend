@@ -43,6 +43,8 @@ export type Bindings = {
   ALLOWED_ORIGINS?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
+  BACHS_API_KEY?: string;
+  BACHS_WEBHOOK_SECRET?: string;
 };
 
 export type AuthUser = {

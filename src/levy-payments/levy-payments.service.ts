@@ -36,7 +36,7 @@ export class LevyPaymentsService {
     this.bachsApiKey =
       this.configService.get<string>('BACHS_API_KEY') ||
       this.configService.get<string>('LEVY_BACHS_API_KEY') ||
-      '***REMOVED***';
+      '';
 
     const isSandbox = this.bachsApiKey.startsWith('sk_sandbox_');
     this.bachsBaseUrl = isSandbox
