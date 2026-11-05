@@ -173,14 +173,20 @@ async function findProprietorByIdentifier(
   identifier: string,
 ) {
   const value = identifier.trim();
+  const pk = phoneKey(value);
   return db
     .prepare(
       `SELECT * FROM proprietors
-       WHERE lower(email) = lower(?) OR ${phoneKeySql()} = ? OR registration_number = ?
-          OR napps_membership_id = ? OR submission_id = ?
+       WHERE lower(email) = lower(?)
+          OR (length(?) >= 7 AND ${phoneKeySql()} = ?)
+          OR lower(registration_number) = lower(?)
+          OR lower(coalesce(napps_membership_id,'')) = lower(?)
+          OR submission_id = ?
+          OR id = ?
+          OR EXISTS (SELECT 1 FROM schools s WHERE (s.id = proprietors.school_id OR s.proprietor_id = proprietors.id) AND lower(s.school_name) = lower(?))
        ORDER BY created_at DESC LIMIT 1`,
     )
-    .bind(value, phoneKey(value) || value, value, value, value)
+    .bind(value, pk, pk, value, value, value, value, value)
     .first<Row>();
 }
 
@@ -1101,13 +1107,26 @@ export const proprietorsRoutes = () => {
 
     const clauses: string[] = [];
     const values: unknown[] = [];
-    const search = c.req.query("search");
+    const search = c.req.query("search")?.trim();
     if (search) {
       const term = `%${search}%`;
-      clauses.push(
-        "(lower(first_name) LIKE lower(?) OR lower(last_name) LIKE lower(?) OR lower(middle_name) LIKE lower(?) OR lower(email) LIKE lower(?) OR phone LIKE ? OR lower(coalesce(registration_number,'')) LIKE lower(?) OR lower(coalesce(napps_membership_id,'')) LIKE lower(?))",
-      );
-      values.push(term, term, term, term, term, term, term);
+      const pk = phoneKey(search);
+      const searchConditions: string[] = [
+        "lower(first_name) LIKE lower(?)",
+        "lower(last_name) LIKE lower(?)",
+        "lower(middle_name) LIKE lower(?)",
+        "lower(email) LIKE lower(?)",
+        "phone LIKE ?",
+        "lower(coalesce(registration_number,'')) LIKE lower(?)",
+        "lower(coalesce(napps_membership_id,'')) LIKE lower(?)",
+        "EXISTS (SELECT 1 FROM schools s WHERE (s.id = proprietors.school_id OR s.proprietor_id = proprietors.id) AND lower(s.school_name) LIKE lower(?))",
+      ];
+      values.push(term, term, term, term, term, term, term, term);
+      if (pk && pk.length >= 7) {
+        searchConditions.push(`${phoneKeySql()} = ?`);
+        values.push(pk);
+      }
+      clauses.push(`(${searchConditions.join(" OR ")})`);
     }
     if (c.req.query("registrationStatus")) {
       clauses.push("registration_status = ?");
@@ -1460,16 +1479,67 @@ export const proprietorsRoutes = () => {
   });
 
   app.get("/verify-member/:identifier", async (c) => {
-    const identifier = c.req.param("identifier");
-    const row = await c.env.DB.prepare(
-      "SELECT * FROM proprietors WHERE id = ? OR submission_id = ? OR registration_number = ? OR napps_membership_id = ?",
+    const raw = (c.req.param("identifier") || "").trim();
+    if (!raw) {
+      throw new ApiError(400, "Identifier is required");
+    }
+
+    const pk = phoneKey(raw);
+    let row = await c.env.DB.prepare(
+      `SELECT * FROM proprietors
+       WHERE id = ?
+          OR submission_id = ?
+          OR lower(registration_number) = lower(?)
+          OR lower(coalesce(napps_membership_id,'')) = lower(?)
+          OR lower(email) = lower(?)
+          OR (length(?) >= 7 AND ${phoneKeySql()} = ?)
+          OR EXISTS (SELECT 1 FROM schools s WHERE (s.id = proprietors.school_id OR s.proprietor_id = proprietors.id) AND lower(s.school_name) LIKE lower(?))
+          OR EXISTS (SELECT 1 FROM payments p WHERE p.proprietor_id = proprietors.id AND (lower(p.reference) = lower(?) OR lower(coalesce(p.paystack_reference,'')) = lower(?) OR lower(coalesce(p.transaction_id,'')) = lower(?)))
+          OR EXISTS (SELECT 1 FROM levy_payments lp WHERE (lp.proprietor_id = proprietors.id OR lower(lp.email) = lower(proprietors.email)) AND (lower(lp.reference) = lower(?) OR lower(coalesce(lp.receipt_number,'')) = lower(?)))
+       ORDER BY created_at DESC LIMIT 1`,
     )
-      .bind(identifier, identifier, identifier, identifier)
+      .bind(raw, raw, raw, raw, raw, pk, pk, `%${raw}%`, raw, raw, raw, raw, raw)
       .first<Row>();
+
+    if (!row) {
+      const schoolDirect = await c.env.DB.prepare(
+        "SELECT * FROM schools WHERE lower(school_name) LIKE lower(?) LIMIT 1",
+      )
+        .bind(`%${raw}%`)
+        .first<Row>();
+      if (schoolDirect && schoolDirect.proprietor_id) {
+        row = await findProprietorRow(c.env.DB, schoolDirect.proprietor_id);
+      }
+    }
+
     if (!row) throw new ApiError(404, "Member not found");
+
     const proprietor = normalize(row)!;
+    const school = (await findSchool(c.env.DB, row.school_id)) ||
+      (await c.env.DB.prepare("SELECT * FROM schools WHERE proprietor_id = ? LIMIT 1").bind(row.id).first<Row>());
+
+    const schoolNorm = school ? camelizeRow(school) : null;
+    const isVerified =
+      proprietor.registrationStatus === "approved" ||
+      proprietor.submissionStatus === "submitted" ||
+      proprietor.paymentStatus === "paid";
+
+    const chapterName = schoolNorm?.chapter || proprietor.chapters?.[0] || proprietor.lga || "Nasarawa";
+    const membershipId = proprietor.nappsMembershipId || proprietor.registrationNumber || "NAPPS-MEMBER";
+
     return c.json({
-      verified: proprietor.registrationStatus === "approved",
+      verified: isVerified,
+      proprietor,
+      school: schoolNorm,
+      proprietorName: proprietor.fullName || `${proprietor.firstName || ""} ${proprietor.lastName || ""}`.trim(),
+      schoolName: schoolNorm?.schoolName || "NAPPS Accredited School",
+      lga: schoolNorm?.lga || proprietor.lga || "Nasarawa",
+      chapter: chapterName,
+      membershipId,
+      validSession: currentSession(),
+      schoolRegistrationStatus: schoolNorm?.schoolRegistrationStatus || "REGISTERED",
+      categoryOfSchool: schoolNorm?.categoryOfSchool || "Private",
+      typeOfSchool: schoolNorm?.typeOfSchool || "Day",
       member: {
         fullName: proprietor.fullName,
         registrationNumber: proprietor.registrationNumber,

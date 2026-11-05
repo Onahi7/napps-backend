@@ -13,7 +13,7 @@
     "db:seed:local": "wrangler d1 execute napps --local --file=src/db/seed.sql",
     "db:seed:remote": "wrangler d1 execute napps --remote --file=src/db/seed.sql",
     "migrate:mongo": "node --experimental-strip-types --no-warnings scripts/migrate-from-mongo.ts",
-    "test": "node --experimental-strip-types --experimental-sqlite --no-warnings test/app.test.ts && node --experimental-strip-types --experimental-sqlite --no-warnings test/registration.test.ts"
+    "test": "node --experimental-strip-types --experimental-sqlite --no-warnings test/app.test.ts && node --experimental-strip-types --experimental-sqlite --no-warnings test/registration.test.ts && node --experimental-strip-types --experimental-sqlite --no-warnings test/search.test.ts"
   },
   "dependencies": {
     "hono": "^4.6.14",

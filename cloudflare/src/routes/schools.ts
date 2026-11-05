@@ -182,16 +182,17 @@ export function schoolsRoutes() {
     const { page, limit, offset } = pageParams(c);
     const clauses: string[] = [];
     const params: unknown[] = [];
-    const search = c.req.query("search");
+    const search = c.req.query("search")?.trim();
     if (search) {
       clauses.push(
-        "(school_name LIKE ? OR school_name2 LIKE ? OR address LIKE ? OR address_line2 LIKE ?)",
+        "(school_name LIKE ? OR school_name2 LIKE ? OR address LIKE ? OR address_line2 LIKE ? OR lga LIKE ? OR chapter LIKE ?)",
       );
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
     }
     const filters: Array<[string, string]> = [
       ["proprietorId", "proprietor_id"],
       ["lga", "lga"],
+      ["chapter", "chapter"],
       ["aeqeoZone", "aeqeo_zone"],
       ["typeOfSchool", "type_of_school"],
       ["categoryOfSchool", "category_of_school"],

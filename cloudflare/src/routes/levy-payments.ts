@@ -3,6 +3,7 @@ import type { Context } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../env.ts";
 import { ApiError, camelizeRow, jsonBody, nowIso, uuid } from "../lib/http.ts";
+import { phoneKey, phoneKeySql } from "../lib/phone.ts";
 
 type Row = Record<string, any>;
 
@@ -99,14 +100,21 @@ async function latestDuplicate(
   if (!email && !phone) return null;
   const clauses: string[] = [];
   const values: unknown[] = [];
-  if (email) {
-    clauses.push("email = ?");
-    values.push(email);
+  if (email && email.trim()) {
+    clauses.push("LOWER(email) = LOWER(?)");
+    values.push(email.trim());
   }
-  if (phone) {
-    clauses.push("phone = ?");
-    values.push(phone);
+  if (phone && phone.trim()) {
+    const pk = phoneKey(phone);
+    if (pk && pk.length >= 7) {
+      clauses.push(`${phoneKeySql("phone")} = ?`);
+      values.push(pk);
+    } else {
+      clauses.push("phone = ?");
+      values.push(phone.trim());
+    }
   }
+  if (!clauses.length) return null;
   return db
     .prepare(
       `SELECT * FROM levy_payments WHERE is_active = 1 AND (${clauses.join(" OR ")}) ORDER BY created_at DESC LIMIT 1`,
@@ -133,16 +141,27 @@ export function levyPaymentsRoutes() {
   });
 
   app.get("/schools", async (c) => {
-    const chapter = c.req.query("chapter");
-    const { results } = chapter
-      ? await c.env.DB.prepare(
-          "SELECT id, school_name, lga, chapter FROM schools WHERE is_active = 1 AND chapter = ? ORDER BY school_name",
-        )
-          .bind(chapter)
-          .all<Row>()
-      : await c.env.DB.prepare(
-          "SELECT id, school_name, lga, chapter FROM schools WHERE is_active = 1 ORDER BY school_name",
-        ).all<Row>();
+    const chapter = c.req.query("chapter")?.trim();
+    const search = c.req.query("search")?.trim();
+    const clauses: string[] = ["is_active = 1"];
+    const values: unknown[] = [];
+
+    if (chapter && chapter !== "all") {
+      const cleanChapter = chapter.trim().toLowerCase().replace(/\s+chapter$/i, "");
+      clauses.push("(LOWER(TRIM(chapter)) = LOWER(TRIM(?)) OR LOWER(TRIM(chapter)) = LOWER(TRIM(? || ' Chapter')) OR LOWER(TRIM(replace(chapter, ' Chapter', ''))) = ?)");
+      values.push(chapter, cleanChapter, cleanChapter);
+    }
+    if (search) {
+      clauses.push("(LOWER(school_name) LIKE LOWER(?) OR LOWER(lga) LIKE LOWER(?))");
+      values.push(`%${search}%`, `%${search}%`);
+    }
+
+    const { results } = await c.env.DB.prepare(
+      `SELECT id, school_name, lga, chapter FROM schools WHERE ${clauses.join(" AND ")} ORDER BY school_name`,
+    )
+      .bind(...values)
+      .all<Row>();
+
     return c.json(
       results.map((s) => ({
         id: s.id,
@@ -201,11 +220,25 @@ export function levyPaymentsRoutes() {
     if (body.proprietorId) {
       proprietor = await proprietorFor(c.env.DB, body.proprietorId);
     } else {
-      proprietor = await c.env.DB.prepare(
-        "SELECT * FROM proprietors WHERE email = ? OR phone = ? LIMIT 1",
-      )
-        .bind(body.email, body.phone)
-        .first<Row>();
+      const emailVal = body.email?.trim();
+      const phoneVal = body.phone ? phoneKey(body.phone) : null;
+      const propClauses: string[] = [];
+      const propValues: unknown[] = [];
+      if (emailVal) {
+        propClauses.push("LOWER(email) = LOWER(?)");
+        propValues.push(emailVal);
+      }
+      if (phoneVal && phoneVal.length >= 7) {
+        propClauses.push(`${phoneKeySql("phone")} = ?`);
+        propValues.push(phoneVal);
+      }
+      if (propClauses.length) {
+        proprietor = await c.env.DB.prepare(
+          `SELECT * FROM proprietors WHERE ${propClauses.join(" OR ")} ORDER BY created_at DESC LIMIT 1`,
+        )
+          .bind(...propValues)
+          .first<Row>();
+      }
     }
 
     const duplicate = await latestDuplicate(c.env.DB, body.email, body.phone);
@@ -361,15 +394,52 @@ export function levyPaymentsRoutes() {
   app.get("/verify/:reference", async (c) => verifyLevy(c, c.req.param("reference")));
 
   app.get("/by-identifier/:identifier", async (c) => {
-    const identifier = c.req.param("identifier");
-    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+    const raw = (c.req.param("identifier") || "").trim();
+    if (!raw) {
+      throw new ApiError(400, "Search identifier is required");
+    }
+
+    const clauses: string[] = ["is_active = 1"];
+    const searchConditions: string[] = [];
+    const values: unknown[] = [];
+
+    // 1. Direct Reference / Receipt Number match
+    searchConditions.push("reference = ?");
+    values.push(raw);
+    searchConditions.push("LOWER(receipt_number) = LOWER(?)");
+    values.push(raw);
+
+    // 2. Email match
+    if (raw.includes("@")) {
+      searchConditions.push("LOWER(email) = LOWER(?)");
+      values.push(raw);
+    }
+
+    // 3. Phone match
+    const pk = phoneKey(raw);
+    if (pk && pk.length >= 7) {
+      searchConditions.push(`${phoneKeySql("phone")} = ?`);
+      values.push(pk);
+    }
+
+    // 4. Name or School Name match
+    if (raw.length >= 3) {
+      searchConditions.push("LOWER(school_name) LIKE LOWER(?)");
+      values.push(`%${raw}%`);
+      searchConditions.push("LOWER(member_name) LIKE LOWER(?)");
+      values.push(`%${raw}%`);
+    }
+
+    clauses.push(`(${searchConditions.join(" OR ")})`);
+
     const { results } = await c.env.DB.prepare(
-      `SELECT * FROM levy_payments WHERE ${isEmail ? "email" : "phone"} = ? AND status = 'success' AND is_active = 1 ORDER BY paid_at DESC`,
+      `SELECT * FROM levy_payments WHERE ${clauses.join(" AND ")} ORDER BY CASE WHEN status = 'success' THEN 1 WHEN status = 'processing' THEN 2 ELSE 3 END, created_at DESC LIMIT 25`,
     )
-      .bind(identifier)
+      .bind(...values)
       .all<Row>();
+
     if (!results.length) {
-      throw new ApiError(404, "No successful payments found for this identifier");
+      throw new ApiError(404, "No payment records found for this identifier");
     }
     const out: Row[] = [];
     for (const row of results) out.push(toLevy(row, await proprietorFor(c.env.DB, row.proprietor_id)) as Row);
@@ -437,13 +507,59 @@ export function levyPaymentsRoutes() {
     const limit = Math.min(200, Math.max(1, Number(c.req.query("limit") ?? 10)));
     const clauses = ["is_active = 1"];
     const values: unknown[] = [];
-    for (const key of ["chapter", "status", "email", "phone"] as const) {
-      const value = c.req.query(key);
-      if (value) {
-        clauses.push(`${key} = ?`);
-        values.push(value);
+
+    const search = c.req.query("search")?.trim();
+    if (search) {
+      const searchConditions: string[] = [
+        "LOWER(member_name) LIKE LOWER(?)",
+        "LOWER(school_name) LIKE LOWER(?)",
+        "LOWER(email) LIKE LOWER(?)",
+        "reference LIKE ?",
+        "LOWER(receipt_number) LIKE LOWER(?)",
+      ];
+      values.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+      const pk = phoneKey(search);
+      if (pk && pk.length >= 7) {
+        searchConditions.push(`${phoneKeySql("phone")} = ?`);
+        values.push(pk);
+      } else {
+        searchConditions.push("phone LIKE ?");
+        values.push(`%${search}%`);
+      }
+      clauses.push(`(${searchConditions.join(" OR ")})`);
+    }
+
+    const chapter = c.req.query("chapter")?.trim();
+    if (chapter && chapter !== "all") {
+      const cleanChapter = chapter.trim().toLowerCase().replace(/\s+chapter$/i, "");
+      clauses.push("(LOWER(TRIM(chapter)) = LOWER(TRIM(?)) OR LOWER(TRIM(chapter)) = LOWER(TRIM(? || ' Chapter')) OR LOWER(TRIM(replace(chapter, ' Chapter', ''))) = ?)");
+      values.push(chapter, cleanChapter, cleanChapter);
+    }
+
+    const status = c.req.query("status")?.trim();
+    if (status && status !== "all") {
+      clauses.push("status = ?");
+      values.push(status);
+    }
+
+    const email = c.req.query("email")?.trim();
+    if (email) {
+      clauses.push("LOWER(email) = LOWER(?)");
+      values.push(email);
+    }
+
+    const phone = c.req.query("phone")?.trim();
+    if (phone) {
+      const pk = phoneKey(phone);
+      if (pk && pk.length >= 7) {
+        clauses.push(`${phoneKeySql("phone")} = ?`);
+        values.push(pk);
+      } else {
+        clauses.push("phone = ?");
+        values.push(phone);
       }
     }
+
     if (c.req.query("proprietorId")) {
       clauses.push("proprietor_id = ?");
       values.push(c.req.query("proprietorId"));

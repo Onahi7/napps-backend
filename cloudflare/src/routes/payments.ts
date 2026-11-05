@@ -11,6 +11,7 @@ import {
   nowIso,
   parseJson,
 } from "../lib/http.ts";
+import { phoneKey, phoneKeySql } from "../lib/phone.ts";
 
 type Row = Record<string, any>;
 
@@ -531,13 +532,49 @@ export const paymentsRoutes = () => {
     const limit = Math.min(200, Math.max(1, Number(c.req.query("limit") ?? 20)));
     const clauses: string[] = [];
     const values: unknown[] = [];
-    if (c.req.query("status")) {
+
+    const search = c.req.query("search")?.trim();
+    if (search) {
+      const term = `%${search}%`;
+      const pk = phoneKey(search);
+      const searchConds = [
+        "reference LIKE ?",
+        "paystack_reference LIKE ?",
+        "EXISTS (SELECT 1 FROM proprietors p WHERE p.id = payments.proprietor_id AND (LOWER(p.first_name) LIKE LOWER(?) OR LOWER(p.last_name) LIKE LOWER(?) OR LOWER(p.email) LIKE LOWER(?) OR LOWER(coalesce(p.registration_number,'')) LIKE LOWER(?)))",
+        "EXISTS (SELECT 1 FROM schools s WHERE s.id = payments.school_id AND LOWER(s.school_name) LIKE LOWER(?))",
+      ];
+      values.push(term, term, term, term, term, term, term);
+      if (pk && pk.length >= 7) {
+        searchConds.push(`EXISTS (SELECT 1 FROM proprietors p WHERE p.id = payments.proprietor_id AND ${phoneKeySql("p.phone")} = ?)`);
+        values.push(pk);
+      }
+      clauses.push(`(${searchConds.join(" OR ")})`);
+    }
+
+    const chapter = c.req.query("chapter")?.trim();
+    if (chapter && chapter !== "all") {
+      clauses.push(
+        "(EXISTS (SELECT 1 FROM schools s WHERE s.id = payments.school_id AND LOWER(TRIM(s.chapter)) = LOWER(TRIM(?))) OR EXISTS (SELECT 1 FROM proprietors p WHERE p.id = payments.proprietor_id AND p.chapters LIKE ?))",
+      );
+      values.push(chapter, `%"${chapter}"%`);
+    }
+
+    const status = c.req.query("status")?.trim();
+    if (status && status !== "all") {
       clauses.push("status = ?");
-      values.push(c.req.query("status"));
+      values.push(status);
     }
     if (c.req.query("proprietorId")) {
       clauses.push("proprietor_id = ?");
       values.push(c.req.query("proprietorId"));
+    }
+    if (c.req.query("startDate")) {
+      clauses.push("created_at >= ?");
+      values.push(c.req.query("startDate"));
+    }
+    if (c.req.query("endDate")) {
+      clauses.push("created_at <= ?");
+      values.push(c.req.query("endDate"));
     }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
     const count = await c.env.DB.prepare(
